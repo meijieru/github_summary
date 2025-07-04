@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "generate full summary",
+			"command": "uv",
+			"args": ["run", "github_summary", "summarize"]
+		},
+		{
+			"type": "shell",
+			"label": "save report",
+			"command": "uv",
+			"args": ["run", "github_summary", "summarize", "--save", "--skip-summary"]
+		}
+	]
+}

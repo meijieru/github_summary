@@ -1,0 +1,23 @@
+[github]
+token = "YOUR_GITHUB_TOKEN"
+
+[filters]
+# Global filters (optional)
+# commits.since_days = 7
+# pull_requests.since_days = 7
+# issues.since_days = 7
+# discussions.since_days = 7
+
+[[repositories]]
+name = "meijieru/github_summary"
+include_commits = true
+include_pull_requests = true
+include_issues = true
+include_discussions = true
+# filters.commits.since_days = 30 # Per-repo filter, overrides global if set
+
+[llm]
+api_key = "YOUR_LLM_API_KEY"
+base_url = "YOUR_LLM_BASE_URL" # Optional, e.g., for local LLMs
+model_name = "gpt-4.1" # Or your preferred model
+system_prompt = "Please summarize the following GitHub repository activity:"

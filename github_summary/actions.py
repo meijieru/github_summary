@@ -1,0 +1,150 @@
+import os
+import json
+import typer
+from pathlib import Path
+from rich.console import Console
+
+from github_summary.config import load_config
+from github_summary.models import FilterConfig, Config, RepoConfig, Commit, PullRequest, Issue, Discussion
+from github_summary.github_client import GitHubService
+from github_summary.summarizer import Summarizer
+from github_summary.llm_client import OpenAICompatibleLLMClient
+
+console = Console()
+
+
+def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer | None]:
+    """Loads the configuration and initializes GitHubService and an optional LLM client and Summarizer.
+
+    Args:
+        config_path: The path to the configuration file.
+
+    Returns:
+        A tuple containing the loaded Config, GitHubService instance, and an optional Summarizer instance.
+
+    Raises:
+        typer.Exit: If the configuration file is not found, is invalid, or if the GitHub token is missing.
+    """
+    try:
+        config = load_config(config_path)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+        raise typer.Exit(1)
+
+    github_token = config.github.token or os.environ.get("GITHUB_TOKEN")
+    if not github_token:
+        console.print("[bold red]Error: GITHUB_TOKEN not found in config or environment variables.[/bold red]")
+        raise typer.Exit(1)
+
+    service = GitHubService(token=github_token)
+
+    llm_client: OpenAICompatibleLLMClient | None = None
+    if config.llm:
+        llm_client = OpenAICompatibleLLMClient(
+            api_key=config.llm.api_key, base_url=config.llm.base_url, model_name=config.llm.model_name
+        )
+
+    summarizer = Summarizer(llm_client=llm_client, system_prompt=config.llm.system_prompt) if llm_client else None
+    return config, service, summarizer
+
+
+def _get_repo_data(
+    repo: RepoConfig,
+    service: GitHubService,
+    config: Config,
+    since_days: int | None = None,
+    author: str | None = None,
+) -> tuple[list[Commit], list[PullRequest], list[Issue], list[Discussion]]:
+    """Fetches repository data (commits, pull requests, issues, discussions) based on provided filters.
+
+    Args:
+        repo: The repository configuration.
+        service: The GitHubService instance.
+        config: The overall application configuration.
+        since_days: Optional. Overrides the number of days to look back for data.
+        author: Optional. Filters data by author.
+
+    Returns:
+        A tuple containing lists of Commit, PullRequest, Issue, and Discussion objects.
+    """
+    merged_filters = config.global_filters.model_copy(deep=True) if config.global_filters else FilterConfig()
+
+    if repo.filters:
+        for field in ["commits", "pull_requests", "issues", "discussions"]:
+            repo_filter_subconfig = getattr(repo.filters, field)
+            if repo_filter_subconfig:
+                current_merged_subconfig = getattr(merged_filters, field)
+                if current_merged_subconfig:
+                    setattr(
+                        merged_filters,
+                        field,
+                        current_merged_subconfig.model_copy(
+                            update=repo_filter_subconfig.model_dump(exclude_unset=True)
+                        ),
+                    )
+                else:
+                    setattr(merged_filters, field, repo_filter_subconfig)
+
+    if since_days:
+        for field in ["commits", "pull_requests", "issues", "discussions"]:
+            if getattr(merged_filters, field):
+                getattr(merged_filters, field).since_days = since_days
+
+    if author:
+        for field in ["commits", "pull_requests", "issues", "discussions"]:
+            if getattr(merged_filters, field):
+                getattr(merged_filters, field).author = author
+
+    commits = service.get_commits(repo, merged_filters)
+    pull_requests = service.get_pull_requests(repo, merged_filters)
+    issues = service.get_issues(repo, merged_filters)
+    discussions = service.get_discussions(repo, merged_filters)
+
+    return commits, pull_requests, issues, discussions
+
+
+def run_report(
+    config_path: str,
+    since_days: int | None,
+    author: str | None,
+    save: bool,
+    skip_summary: bool,
+):
+    """Runs the GitHub activity report, fetching data and optionally generating a summary.
+
+    Args:
+        config_path: Path to the configuration file.
+        since_days: Optional. Overrides the number of days to look back for data.
+        author: Optional. Filters data by author.
+        save: If True, saves the report to a JSON file.
+        skip_summary: If True, skips generating and printing the LLM-based summary.
+    """
+    config, service, summarizer = _get_services(config_path)
+
+    if not skip_summary and not summarizer:
+        console.print("[bold red]Error: LLM configuration not found in config.toml.[/bold red]")
+        raise typer.Exit(1)
+
+    for repo in config.repositories:
+        console.print(f"[bold green]Generating full report for {repo.name}...[/bold green]")
+        commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since_days, author)
+
+        if not skip_summary:
+            summary = summarizer.summarize(commits, pull_requests, issues, discussions)
+            console.print(summary)
+
+        if save:
+            output_data = {
+                "repo": repo.name,
+                "commits": [c.model_dump() for c in commits],
+                "pull_requests": [pr.model_dump() for pr in pull_requests],
+                "issues": [i.model_dump() for i in issues],
+                "discussions": [d.model_dump() for d in discussions],
+            }
+            output_dir = Path(config.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            file_name = f"{repo.name.replace('/', '_')}_summary.json"
+            file_path = output_dir / file_name
+            with open(file_path, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"[bold blue]Report saved to {file_path}[/bold blue]")

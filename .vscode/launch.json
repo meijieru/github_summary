@@ -1,0 +1,14 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Dump info",
+			"type": "python",
+			"request": "launch",
+			"program": "${workspaceFolder}/github_summary/main.py",
+			"console": "integratedTerminal",
+			"justMyCode": true,
+			"args": ["summarize", "--config", "${workspaceFolder}/config.toml", "--skip_summary"]
+		}
+	]
+}
