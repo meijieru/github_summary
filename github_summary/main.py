@@ -12,6 +12,9 @@ app.add_typer(utils_app, name="utils")
 @app.command()
 def summarize(
     config_path: str = typer.Option("config/config.toml", "--config", "-c", help="Path to the configuration file."),
+    since_days: int | None = typer.Option(
+        None, "--since-days", help="Number of days to look back for data. If not set, uses default from config."
+    ),
     author: str | None = typer.Option(None, "--author", help="Filter by author."),
     save: bool = typer.Option(False, "--save", help="Save the report to a JSON file."),
     skip_summary: bool = typer.Option(False, "--skip-summary", help="Skip printing the summary."),
