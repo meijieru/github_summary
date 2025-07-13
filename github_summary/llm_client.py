@@ -1,5 +1,8 @@
 from openai import OpenAI
+import logging
 from github_summary.summarizer import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAICompatibleLLMClient(LLMClient):
@@ -11,6 +14,7 @@ class OpenAICompatibleLLMClient(LLMClient):
             base_url: Optional. The base URL for the API. Defaults to OpenAI's base URL.
             model_name: The name of the model to use for summarization. Defaults to "gpt-3.5-turbo".
         """
+        logger.info("Initializing OpenAICompatibleLLMClient with model: %s", model_name)
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model_name = model_name
 
@@ -23,6 +27,7 @@ class OpenAICompatibleLLMClient(LLMClient):
         Returns:
             The generated summary string.
         """
+        logger.debug("Sending prompt to LLM: %s", prompt)
         chat_completion = self.client.chat.completions.create(
             messages=[
                 {
@@ -32,4 +37,6 @@ class OpenAICompatibleLLMClient(LLMClient):
             ],
             model=self.model_name,
         )
-        return chat_completion.choices[0].message.content
+        summary = chat_completion.choices[0].message.content
+        logger.debug("Received summary from LLM.")
+        return summary

@@ -1,8 +1,11 @@
 import re
 import requests
+import logging
 from datetime import datetime, timedelta, UTC
 from typing import Any
 from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 
 from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, RepoConfig
 from github_summary.queries import (
@@ -40,8 +43,10 @@ class GraphQLClient:
         Raises:
             requests.exceptions.HTTPError: If the API request fails.
         """
+        logger.debug("Executing GraphQL query:\nQuery: %s\nVariables: %s", query, variables)
         response = requests.post(self.url, json={"query": query, "variables": variables}, headers=self.headers)
         response.raise_for_status()
+        logger.debug("GraphQL query response: %s", response.json())
         return response.json()
 
     def _paginate(

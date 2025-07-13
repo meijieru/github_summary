@@ -2,6 +2,7 @@ import os
 import json
 import typer
 from pathlib import Path
+import logging
 from rich.console import Console
 
 from github_summary.config import load_config
@@ -11,6 +12,17 @@ from github_summary.summarizer import Summarizer
 from github_summary.llm_client import OpenAICompatibleLLMClient
 
 console = Console()
+logger = logging.getLogger(__name__)
+
+
+def _setup_logging(log_level: str):
+    log_dir = Path("log")
+    log_dir.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper(), logging.INFO),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(log_dir / "github_summary.log")],
+    )
 
 
 def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer | None]:
@@ -28,11 +40,13 @@ def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer |
     try:
         config = load_config(config_path)
     except (FileNotFoundError, ValueError) as e:
+        logger.error("Error loading configuration: %s", e)
         console.print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(1)
 
     github_token = config.github.token or os.environ.get("GITHUB_TOKEN")
     if not github_token:
+        logger.error("GITHUB_TOKEN not found in config or environment variables.")
         console.print("[bold red]Error: GITHUB_TOKEN not found in config or environment variables.[/bold red]")
         raise typer.Exit(1)
 
@@ -67,6 +81,7 @@ def _get_repo_data(
     Returns:
         A tuple containing lists of Commit, PullRequest, Issue, and Discussion objects.
     """
+    logger.info("Fetching data for repository: %s", repo.name)
     merged_filters = config.global_filters.model_copy(deep=True) if config.global_filters else FilterConfig()
 
     if repo.filters:
@@ -119,17 +134,22 @@ def run_report(
         save: If True, saves the report to a JSON file.
         skip_summary: If True, skips generating and printing the LLM-based summary.
     """
+    logger.info("Starting report generation.")
     config, service, summarizer = _get_services(config_path)
+    _setup_logging(config.log_level)
 
     if not skip_summary and not summarizer:
+        logger.error("LLM configuration not found in config.toml.")
         console.print("[bold red]Error: LLM configuration not found in config.toml.[/bold red]")
         raise typer.Exit(1)
 
     for repo in config.repositories:
         console.print(f"[bold green]Generating full report for {repo.name}...[/bold green]")
+        logger.info("Processing repository: %s", repo.name)
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since_days, author)
 
         if not skip_summary:
+            logger.info("Generating summary with LLM.")
             summary = summarizer.summarize(commits, pull_requests, issues, discussions)
             console.print(summary)
 
@@ -147,4 +167,5 @@ def run_report(
             file_path = output_dir / file_name
             with open(file_path, "w") as f:
                 json.dump(output_data, f, indent=2)
+            logger.info("Report saved to %s", file_path)
             console.print(f"[bold blue]Report saved to {file_path}[/bold blue]")

@@ -101,6 +101,7 @@ class Config(BaseModel):
     repositories: list[RepoConfig]
     llm: LLMConfig | None = None
     output_dir: str = "output"
+    log_level: str = "INFO"
 
     @model_validator(mode="after")
     def merge_global_filters(self) -> Config:

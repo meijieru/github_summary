@@ -1,8 +1,12 @@
 import typer
+import logging
+from pathlib import Path
 
 from github_summary.actions import run_report
 from github_summary.github_client import GitHubService
 from github_summary.config import load_config
+
+logger = logging.getLogger(__name__)
 
 app = typer.Typer()
 utils_app = typer.Typer()
@@ -37,9 +41,5 @@ def list_labels(
         print(label)
 
 
-def main():
-    app()
-
-
 if __name__ == "__main__":
-    main()
+    app()

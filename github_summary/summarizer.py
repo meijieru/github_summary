@@ -1,6 +1,9 @@
 from typing import Protocol
+import logging
 
 from github_summary.models import Commit, Discussion, Issue, PullRequest
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient(Protocol):
@@ -20,6 +23,7 @@ class Summarizer:
             llm_client: An instance of a class implementing the LLMClient protocol.
             system_prompt: The base system prompt to use for summarization.
         """
+        logger.info("Initializing Summarizer.")
         self.llm_client = llm_client
         self.system_prompt = system_prompt
 
@@ -41,7 +45,9 @@ class Summarizer:
         Returns:
             A string containing the generated summary.
         """
+        logger.info("Generating LLM prompt.")
         prompt = self._generate_llm_prompt(commits, pull_requests, issues, discussions)
+        logger.debug("Generated prompt length: %d", len(prompt))
         return self.llm_client.generate_summary(prompt)
 
     def _generate_llm_prompt(
@@ -65,21 +71,25 @@ class Summarizer:
         prompt = f"{self.system_prompt}\n\n"
 
         if commits:
+            logger.debug("Adding commits to prompt.")
             prompt += "Commits:\n"
             for commit in commits:
                 prompt += f"- [{commit.author}: {commit.message}]({commit.html_url}) ({commit.date})\n"
 
         if pull_requests:
+            logger.debug("Adding pull requests to prompt.")
             prompt += "\nPull Requests:\n"
             for pr in pull_requests:
                 prompt += f"- [#{pr.number}: {pr.title}]({pr.html_url}) ({pr.state}) by {pr.author}\n"
 
         if issues:
+            logger.debug("Adding issues to prompt.")
             prompt += "\nIssues:\n"
             for issue in issues:
                 prompt += f"- [#{issue.number}: {issue.title}]({issue.html_url}) ({issue.state}) by {issue.author} ({issue.created_at})\n"
 
         if discussions:
+            logger.debug("Adding discussions to prompt.")
             prompt += "\nDiscussions:\n"
             for discussion in discussions:
                 prompt += (
