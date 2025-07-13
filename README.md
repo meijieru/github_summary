@@ -71,6 +71,7 @@ The Gemini CLI uses a `config.toml` file for its settings. An example configurat
     include_issues = true
     include_discussions = true
     # filters.commits.since_days = 30 # Per-repo filter, overrides global if set
+    # filters.commits.exclude_commit_messages_regex = "^(fix|docs|test|build|chore|ci)" # Exclude commits with messages starting with these prefixes
 
     [llm]
     api_key = "YOUR_LLM_API_KEY"

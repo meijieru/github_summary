@@ -15,6 +15,7 @@ include_pull_requests = true
 include_issues = true
 include_discussions = true
 # filters.commits.since_days = 30 # Per-repo filter, overrides global if set
+# filters.commits.exclude_commit_messages_regex = "^(fix|docs|test|build|chore|ci)"
 
 [llm]
 api_key = "YOUR_LLM_API_KEY"
