@@ -69,13 +69,16 @@ class GraphQLClient:
         has_next_page = True
         cursor = None
 
-        while has_next_page:
+        i = 0
+        # TODO(meijierun): Remove the limit of 5 pages.
+        while has_next_page and i < 5:
             variables["cursor"] = cursor
             data = self._execute(query, variables)
             page_data = data_extractor(data)
             all_nodes.extend(page_data["nodes"])
             has_next_page = page_data["pageInfo"]["hasNextPage"]
             cursor = page_data["pageInfo"]["endCursor"]
+            i += 1
 
         return all_nodes
 
