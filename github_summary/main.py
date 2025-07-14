@@ -21,10 +21,11 @@ def summarize(
     ),
     author: str | None = typer.Option(None, "--author", help="Filter by author."),
     save: bool = typer.Option(False, "--save", help="Save the report to a JSON file."),
+    save_markdown: bool = typer.Option(False, "--save-markdown", help="Save the summary to a Markdown file."),
     skip_summary: bool = typer.Option(False, "--skip-summary", help="Skip printing the summary."),
 ):
     """Summarize the recent progress in GitHub repositories."""
-    run_report(config_path, since_days, author, save, skip_summary)
+    run_report(config_path, since_days, author, save, save_markdown, skip_summary)
 
 
 @utils_app.command("list-labels")

@@ -123,6 +123,7 @@ def run_report(
     since_days: int | None,
     author: str | None,
     save: bool,
+    save_markdown: bool,
     skip_summary: bool,
 ):
     """Runs the GitHub activity report, fetching data and optionally generating a summary.
@@ -132,6 +133,7 @@ def run_report(
         since_days: Optional. Overrides the number of days to look back for data.
         author: Optional. Filters data by author.
         save: If True, saves the report to a JSON file.
+        save_markdown: If True, saves the summary to a Markdown file.
         skip_summary: If True, skips generating and printing the LLM-based summary.
     """
     logger.info("Starting report generation.")
@@ -148,10 +150,21 @@ def run_report(
         logger.info("Processing repository: %s", repo.name)
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since_days, author)
 
+        summary = ""
         if not skip_summary:
             logger.info("Generating summary with LLM.")
             summary = summarizer.summarize(commits, pull_requests, issues, discussions)
             console.print(summary)
+
+        if save_markdown and summary:
+            output_dir = Path(config.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            file_name = f"{repo.name.replace('/', '_')}_summary.md"
+            file_path = output_dir / file_name
+            with open(file_path, "w") as f:
+                f.write(f"# Summary for {repo.name}\n\n{summary}")
+            logger.info("Summary saved to %s", file_path)
+            console.print(f"[bold blue]Summary saved to {file_path}[/bold blue]")
 
         if save:
             output_data = {

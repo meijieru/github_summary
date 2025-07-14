@@ -45,6 +45,10 @@ class Summarizer:
         Returns:
             A string containing the generated summary.
         """
+        if not commits and not pull_requests and not issues and not discussions:
+            logger.info("No new updates found.")
+            return "No new updates."
+
         logger.info("Generating LLM prompt.")
         prompt = self._generate_llm_prompt(commits, pull_requests, issues, discussions)
         logger.debug("Generated prompt length: %d", len(prompt))
