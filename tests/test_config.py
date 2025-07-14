@@ -21,10 +21,10 @@ def test_load_config_success(tmp_path):
 
     config = load_config(str(config_file))
     assert isinstance(config, Config)
-    assert config.global_filters.commits.since_days == 7
     assert config.repositories[0].name == "owner/repo1"
     assert config.repositories[1].name == "owner/repo2"
     assert config.repositories[1].filters.commits.author == "test_author"
+    assert config.since_last_run is True
 
 
 def test_load_config_not_found():

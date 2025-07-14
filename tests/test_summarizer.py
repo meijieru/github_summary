@@ -1,5 +1,14 @@
 from unittest.mock import Mock, patch
-from github_summary.models import Commit, Discussion, Issue, PullRequest
+from github_summary.models import (
+    RepoConfig,
+    Commit,
+    PullRequest,
+    Issue,
+    Discussion,
+)
+from github_summary.config import Config
+
+
 from github_summary.summarizer import Summarizer
 from github_summary.main import app as cli_app
 
@@ -7,7 +16,7 @@ from github_summary.main import app as cli_app
 def test_summarizer():
     mock_llm_client = Mock()
     mock_llm_client.generate_summary.return_value = "Mocked LLM Summary"
-    summarizer = Summarizer(llm_client=mock_llm_client)
+    summarizer = Summarizer(llm_client=mock_llm_client, system_prompt="Test prompt")
     commits = [
         Commit(
             sha="123",
@@ -56,19 +65,24 @@ def test_summarizer():
 
 def test_summarizer_output_json():
     mock_llm_client = Mock()
-    mock_summarizer = Mock()
-    mock_summarizer.summarize.return_value = "Mocked LLM Summary"
+    summarizer_instance = Summarizer(llm_client=mock_llm_client, system_prompt="Test prompt")
 
-    # Mock GitHubService methods to return dummy data
-    mock_config = Mock()
-    mock_config.repositories = [Mock()]
-    mock_config.repositories[0].name = "test_owner/test_repo"
+    # Create a proper Config object
+    test_repo_config = RepoConfig(name="test_owner/test_repo")
+    mock_config = Config(
+        repositories=[test_repo_config],
+        output_dir="output",
+        log_level="INFO",
+        since_last_run=True,
+    )
+
     mock_service = Mock()
 
     with (
-        patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, mock_summarizer)),
+        patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, summarizer_instance)),
         patch("github_summary.actions.console.print") as mock_console_print,
         patch("json.dump") as mock_json_dump,
+        patch.object(summarizer_instance, "summarize", return_value="Mocked LLM Summary") as mock_summarize_method,
     ):
         mock_service.get_commits.return_value = [
             Commit(
@@ -117,7 +131,7 @@ def test_summarizer_output_json():
         result = runner.invoke(cli_app, ["summarize", "--config", "config.toml", "--save"])
 
         assert result.exit_code == 0
-        mock_summarizer.summarize.assert_called_once()  # full_report_cmd calls summarizer
+        mock_summarize_method.assert_called_once()
 
         # Assert that json.dump was called with the correct data
         expected_output_data = {

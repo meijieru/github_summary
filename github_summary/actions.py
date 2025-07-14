@@ -5,14 +5,38 @@ from pathlib import Path
 import logging
 from rich.console import Console
 
+from datetime import datetime, UTC, timedelta
+
 from github_summary.config import load_config
-from github_summary.models import FilterConfig, Config, RepoConfig, Commit, PullRequest, Issue, Discussion
+from github_summary.models import (
+    FilterConfig,
+    Config,
+    RepoConfig,
+    Commit,
+    PullRequest,
+    Issue,
+    Discussion,
+)
 from github_summary.github_client import GitHubService
 from github_summary.summarizer import Summarizer
 from github_summary.llm_client import OpenAICompatibleLLMClient
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+LAST_RUN_FILE = Path("log/last_run")
+
+
+def _get_last_run_time() -> datetime | None:
+    """Reads the last run time from the .last_run file."""
+    if LAST_RUN_FILE.exists():
+        return datetime.fromisoformat(LAST_RUN_FILE.read_text()).astimezone(UTC)
+    return None
+
+
+def _set_last_run_time() -> None:
+    """Writes the current time to the .last_run file."""
+    LAST_RUN_FILE.write_text(datetime.now(UTC).isoformat())
 
 
 def _setup_logging(log_level: str):
@@ -66,8 +90,7 @@ def _get_repo_data(
     repo: RepoConfig,
     service: GitHubService,
     config: Config,
-    since_days: int | None = None,
-    author: str | None = None,
+    since: datetime,
 ) -> tuple[list[Commit], list[PullRequest], list[Issue], list[Discussion]]:
     """Fetches repository data (commits, pull requests, issues, discussions) based on provided filters.
 
@@ -75,8 +98,7 @@ def _get_repo_data(
         repo: The repository configuration.
         service: The GitHubService instance.
         config: The overall application configuration.
-        since_days: Optional. Overrides the number of days to look back for data.
-        author: Optional. Filters data by author.
+        since: A datetime object indicating the start time for fetching data.
 
     Returns:
         A tuple containing lists of Commit, PullRequest, Issue, and Discussion objects.
@@ -100,28 +122,16 @@ def _get_repo_data(
                 else:
                     setattr(merged_filters, field, repo_filter_subconfig)
 
-    if since_days:
-        for field in ["commits", "pull_requests", "issues", "discussions"]:
-            if getattr(merged_filters, field):
-                getattr(merged_filters, field).since_days = since_days
-
-    if author:
-        for field in ["commits", "pull_requests", "issues", "discussions"]:
-            if getattr(merged_filters, field):
-                getattr(merged_filters, field).author = author
-
-    commits = service.get_commits(repo, merged_filters)
-    pull_requests = service.get_pull_requests(repo, merged_filters)
-    issues = service.get_issues(repo, merged_filters)
-    discussions = service.get_discussions(repo, merged_filters)
+    commits = service.get_commits(repo, merged_filters, since)
+    pull_requests = service.get_pull_requests(repo, merged_filters, since)
+    issues = service.get_issues(repo, merged_filters, since)
+    discussions = service.get_discussions(repo, merged_filters, since)
 
     return commits, pull_requests, issues, discussions
 
 
 def run_report(
     config_path: str,
-    since_days: int | None,
-    author: str | None,
     save: bool,
     save_markdown: bool,
     skip_summary: bool,
@@ -130,8 +140,6 @@ def run_report(
 
     Args:
         config_path: Path to the configuration file.
-        since_days: Optional. Overrides the number of days to look back for data.
-        author: Optional. Filters data by author.
         save: If True, saves the report to a JSON file.
         save_markdown: If True, saves the summary to a Markdown file.
         skip_summary: If True, skips generating and printing the LLM-based summary.
@@ -145,10 +153,19 @@ def run_report(
         console.print("[bold red]Error: LLM configuration not found in config.toml.[/bold red]")
         raise typer.Exit(1)
 
+    since = datetime.now(UTC) - timedelta(days=config.fallback_lookback_days)
+    if config.since_last_run:
+        last_run_time = _get_last_run_time()
+
+        if not last_run_time:
+            logger.warning("No last run time found, falling back to %s days.", config.fallback_lookback_days)
+        else:
+            since = last_run_time
+
     for repo in config.repositories:
         console.print(f"[bold green]Generating full report for {repo.name}...[/bold green]")
         logger.info("Processing repository: %s", repo.name)
-        commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since_days, author)
+        commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since)
 
         summary = ""
         if not skip_summary:
@@ -182,3 +199,6 @@ def run_report(
                 json.dump(output_data, f, indent=2)
             logger.info("Report saved to %s", file_path)
             console.print(f"[bold blue]Report saved to {file_path}[/bold blue]")
+
+    if config.since_last_run:
+        _set_last_run_time()

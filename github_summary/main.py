@@ -1,6 +1,5 @@
 import typer
 import logging
-from pathlib import Path
 
 from github_summary.actions import run_report
 from github_summary.github_client import GitHubService
@@ -16,16 +15,12 @@ app.add_typer(utils_app, name="utils")
 @app.command()
 def summarize(
     config_path: str = typer.Option("config/config.toml", "--config", "-c", help="Path to the configuration file."),
-    since_days: int | None = typer.Option(
-        None, "--since-days", help="Number of days to look back for data. If not set, uses default from config."
-    ),
-    author: str | None = typer.Option(None, "--author", help="Filter by author."),
     save: bool = typer.Option(False, "--save", help="Save the report to a JSON file."),
     save_markdown: bool = typer.Option(False, "--save-markdown", help="Save the summary to a Markdown file."),
     skip_summary: bool = typer.Option(False, "--skip-summary", help="Skip printing the summary."),
 ):
     """Summarize the recent progress in GitHub repositories."""
-    run_report(config_path, since_days, author, save, save_markdown, skip_summary)
+    run_report(config_path, save, save_markdown, skip_summary)
 
 
 @utils_app.command("list-labels")

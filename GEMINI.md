@@ -12,6 +12,10 @@ Gemini CLI is a command-line tool that fetches and summarizes activity from GitH
 ## Development Principles 🛠️
 
 - **Prioritize GraphQL API:** We prefer using the [GitHub GraphQL API](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql) for its efficiency and ability to fetch precisely the data needed in a single request.
+- **Time Zone**
+  - Github use the ISO 8601 standard.
+  - Use UTC for all internal processing and storage.
+  - The user's perception of time should be local.
 - **Code Style:** The project adheres to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) to ensure code is readable, consistent, and maintainable.
 - **Code Quality:** We maintain high standards for code quality through comprehensive docstrings and complete type annotations.
 

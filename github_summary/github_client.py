@@ -1,7 +1,7 @@
 import re
 import requests
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from typing import Any
 from collections.abc import Callable
 
@@ -92,7 +92,7 @@ class GitHubService:
         """
         self.client = GraphQLClient(token)
 
-    def get_commits(self, repo: RepoConfig, filters: FilterConfig) -> list[Commit]:
+    def get_commits(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Commit]:
         """Fetches commits for a given repository, applying specified filters.
 
         Args:
@@ -107,9 +107,6 @@ class GitHubService:
 
         owner, repo_name = repo.name.split("/")
         variables: dict[str, Any] = {"owner": owner, "repo": repo_name}
-        if filters.commits:
-            if hasattr(filters.commits, "path") and filters.commits.path:
-                variables["path"] = filters.commits.path
 
         commits_data = self.client._paginate(
             GET_COMMITS_QUERY,
@@ -119,12 +116,10 @@ class GitHubService:
 
         filtered_commits = []
         for item in commits_data:
-            commit_date = datetime.fromisoformat(item["author"]["date"].replace("Z", "+00:00"))
+            commit_date = datetime.fromisoformat(item["author"]["date"]).astimezone(UTC)
+            if commit_date < since:
+                continue
             if filters.commits:
-                if filters.commits.since_days:
-                    since_date = datetime.now(commit_date.tzinfo) - timedelta(days=filters.commits.since_days)
-                    if commit_date < since_date:
-                        continue
                 if filters.commits.author and item["author"]["name"] != filters.commits.author:
                     continue
                 if filters.commits.exclude_commit_messages_regex and re.search(
@@ -142,7 +137,7 @@ class GitHubService:
             )
         return filtered_commits
 
-    def get_pull_requests(self, repo: RepoConfig, filters: FilterConfig) -> list[PullRequest]:
+    def get_pull_requests(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[PullRequest]:
         """Fetches pull requests for a given repository, applying specified filters.
 
         Args:
@@ -171,11 +166,10 @@ class GitHubService:
 
         filtered_pull_requests = []
         for item in pull_requests_data:
-            pr_date = datetime.fromisoformat(item["createdAt"].replace("Z", "+00:00"))
-            if filters.pull_requests and filters.pull_requests.since_days:
-                since_date = datetime.now(pr_date.tzinfo) - timedelta(days=filters.pull_requests.since_days)
-                if pr_date < since_date:
-                    continue
+            pr_date = datetime.fromisoformat(item["createdAt"]).astimezone(UTC)
+            if pr_date < since:
+                continue
+
             if (
                 filters.pull_requests
                 and filters.pull_requests.author
@@ -200,7 +194,7 @@ class GitHubService:
             )
         return filtered_pull_requests
 
-    def get_issues(self, repo: RepoConfig, filters: FilterConfig) -> list[Issue]:
+    def get_issues(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Issue]:
         """Fetches issues for a given repository, applying specified filters.
 
         Args:
@@ -214,13 +208,13 @@ class GitHubService:
             return []
 
         owner, repo_name = repo.name.split("/")
-        query_parts = [f"repo:{owner}/{repo_name}", "is:issue"]
-        if filters.issues:
-            if filters.issues.since_days:
-                since_date = datetime.now(UTC) - timedelta(days=filters.issues.since_days)
-                query_parts.append(f"created:>{since_date.isoformat()}")
-            if filters.issues.type:
-                query_parts.append(f'label:"{filters.issues.type}"')
+        query_parts = [
+            f"repo:{owner}/{repo_name}",
+            "is:issue",
+            f"created:>{since.isoformat(timespec='seconds').replace('+00:00', 'Z')}",
+        ]
+        if filters.issues.type:
+            query_parts.append(f'label:"{filters.issues.type}"')
 
         search_query = " ".join(query_parts)
         variables: dict[str, Any] = {"searchQuery": search_query}
@@ -250,7 +244,7 @@ class GitHubService:
             )
         return filtered_issues
 
-    def get_discussions(self, repo: RepoConfig, filters: FilterConfig) -> list[Discussion]:
+    def get_discussions(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Discussion]:
         """Fetches discussions for a given repository, applying specified filters.
 
         Args:
@@ -274,18 +268,15 @@ class GitHubService:
 
         filtered_discussions = []
         for item in discussions_data:
-            discussion_date = datetime.fromisoformat(item["createdAt"].replace("Z", "+00:00"))
-            if filters.discussions:
-                if filters.discussions.since_days:
-                    since_date = datetime.now(discussion_date.tzinfo) - timedelta(days=filters.discussions.since_days)
-                    if discussion_date < since_date:
-                        continue
-                if filters.discussions.author and item["author"]["login"] != filters.discussions.author:
-                    continue
-                if filters.discussions.exclude_discussion_titles_regex and re.search(
-                    filters.discussions.exclude_discussion_titles_regex, item["title"]
-                ):
-                    continue
+            discussion_date = datetime.fromisoformat(item["createdAt"]).astimezone(UTC)
+            if discussion_date < since:
+                continue
+            if filters.discussions.author and item["author"]["login"] != filters.discussions.author:
+                continue
+            if filters.discussions.exclude_discussion_titles_regex and re.search(
+                filters.discussions.exclude_discussion_titles_regex, item["title"]
+            ):
+                continue
             filtered_discussions.append(
                 Discussion(
                     id=item["id"],

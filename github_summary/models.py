@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, Field, model_validator
 
 
 class CommitFilterConfig(BaseModel):
     """Configuration for filtering commits."""
 
-    since_days: int | None = None
     author: str | None = None
     exclude_commit_messages_regex: str | None = None
 
@@ -13,7 +13,6 @@ class CommitFilterConfig(BaseModel):
 class PullRequestFilterConfig(BaseModel):
     """Configuration for filtering pull requests."""
 
-    since_days: int | None = None
     author: str | None = None
     state: str | None = None
     labels: list[str] | None = None
@@ -23,7 +22,6 @@ class PullRequestFilterConfig(BaseModel):
 class IssueFilterConfig(BaseModel):
     """Configuration for filtering issues."""
 
-    since_days: int | None = None
     author: str | None = None
     milestone: str | None = None
     labels: list[str] | None = None
@@ -35,7 +33,6 @@ class IssueFilterConfig(BaseModel):
 class DiscussionFilterConfig(BaseModel):
     """Configuration for filtering discussions."""
 
-    since_days: int | None = None
     author: str | None = None
     exclude_discussion_titles_regex: str | None = None
 
@@ -102,6 +99,8 @@ class Config(BaseModel):
     llm: LLMConfig | None = None
     output_dir: str = "output"
     log_level: str = "INFO"
+    since_last_run: bool = True
+    fallback_lookback_days: int = 7
 
     @model_validator(mode="after")
     def merge_global_filters(self) -> Config:
