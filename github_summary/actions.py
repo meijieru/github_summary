@@ -3,7 +3,8 @@ import json
 import typer
 from pathlib import Path
 import logging
-from rich.console import Console
+from rich.logging import RichHandler
+from logging.handlers import RotatingFileHandler
 
 from datetime import datetime, UTC, timedelta
 
@@ -21,7 +22,6 @@ from github_summary.github_client import GitHubService
 from github_summary.summarizer import Summarizer
 from github_summary.llm_client import OpenAICompatibleLLMClient
 
-console = Console()
 logger = logging.getLogger(__name__)
 
 LAST_RUN_FILE = Path("log/last_run")
@@ -42,10 +42,21 @@ def _set_last_run_time() -> None:
 def _setup_logging(log_level: str):
     log_dir = Path("log")
     log_dir.mkdir(exist_ok=True)
+
+    # Console handler
+    console_handler = RichHandler(
+        rich_tracebacks=True,
+        tracebacks_show_locals=True,
+    )
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+
+    # File handler
+    file_handler = RotatingFileHandler(log_dir / "github_summary.log", maxBytes=5 * 1024 * 1024, backupCount=3)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.FileHandler(log_dir / "github_summary.log")],
+        handlers=[console_handler, file_handler],
     )
 
 
@@ -65,24 +76,22 @@ def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer |
         config = load_config(config_path)
     except (FileNotFoundError, ValueError) as e:
         logger.error("Error loading configuration: %s", e)
-        console.print(f"[bold red]Error: {e}[/bold red]")
         raise typer.Exit(1)
 
     github_token = config.github.token or os.environ.get("GITHUB_TOKEN")
     if not github_token:
         logger.error("GITHUB_TOKEN not found in config or environment variables.")
-        console.print("[bold red]Error: GITHUB_TOKEN not found in config or environment variables.[/bold red]")
         raise typer.Exit(1)
 
     service = GitHubService(token=github_token)
 
-    llm_client: OpenAICompatibleLLMClient | None = None
+    llm_client = None
+    summarizer = None
     if config.llm:
         llm_client = OpenAICompatibleLLMClient(
             api_key=config.llm.api_key, base_url=config.llm.base_url, model_name=config.llm.model_name
         )
-
-    summarizer = Summarizer(llm_client=llm_client, system_prompt=config.llm.system_prompt) if llm_client else None
+        summarizer = Summarizer(llm_client=llm_client, system_prompt=config.llm.system_prompt)
     return config, service, summarizer
 
 
@@ -150,7 +159,6 @@ def run_report(
 
     if not skip_summary and not summarizer:
         logger.error("LLM configuration not found in config.toml.")
-        console.print("[bold red]Error: LLM configuration not found in config.toml.[/bold red]")
         raise typer.Exit(1)
 
     since = datetime.now(UTC) - timedelta(days=config.fallback_lookback_days)
@@ -163,15 +171,15 @@ def run_report(
             since = last_run_time
 
     for repo in config.repositories:
-        console.print(f"[bold green]Generating full report for {repo.name}...[/bold green]")
+        logger.info("Generating full report for %s", repo.name)
         logger.info("Processing repository: %s", repo.name)
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since)
 
         summary = ""
         if not skip_summary:
-            logger.info("Generating summary with LLM.")
+            logger.info("Generating summary with LLM")
             summary = summarizer.summarize(commits, pull_requests, issues, discussions)
-            console.print(summary)
+            logger.info(summary)
 
         if save_markdown and summary:
             output_dir = Path(config.output_dir)
@@ -181,7 +189,6 @@ def run_report(
             with open(file_path, "w") as f:
                 f.write(f"# Summary for {repo.name}\n\n{summary}")
             logger.info("Summary saved to %s", file_path)
-            console.print(f"[bold blue]Summary saved to {file_path}[/bold blue]")
 
         if save:
             output_data = {
@@ -198,7 +205,6 @@ def run_report(
             with open(file_path, "w") as f:
                 json.dump(output_data, f, indent=2)
             logger.info("Report saved to %s", file_path)
-            console.print(f"[bold blue]Report saved to {file_path}[/bold blue]")
 
     if config.since_last_run:
         _set_last_run_time()

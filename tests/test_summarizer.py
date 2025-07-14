@@ -80,7 +80,7 @@ def test_summarizer_output_json():
 
     with (
         patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, summarizer_instance)),
-        patch("github_summary.actions.console.print") as mock_console_print,
+        patch("github_summary.actions.logger.info") as mock_logger_info,
         patch("json.dump") as mock_json_dump,
         patch.object(summarizer_instance, "summarize", return_value="Mocked LLM Summary") as mock_summarize_method,
     ):
@@ -181,4 +181,4 @@ def test_summarizer_output_json():
         assert mock_json_dump.call_args[0][0] == expected_output_data
 
         # Assert that console.print was called with the summary
-        mock_console_print.assert_any_call("Mocked LLM Summary")
+        mock_logger_info.assert_any_call("Mocked LLM Summary")
