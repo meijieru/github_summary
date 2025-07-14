@@ -87,13 +87,13 @@ class LLMConfig(BaseModel):
 class GitHubConfig(BaseModel):
     """Configuration for GitHub API access."""
 
-    token: str | None = Field(None, json_schema_extra={"env": "GITHUB_TOKEN"})
+    token: str = Field(..., json_schema_extra={"env": "GITHUB_TOKEN"})
 
 
 class Config(BaseModel):
     """Main application configuration, including GitHub settings, global filters, repositories, and LLM settings."""
 
-    github: GitHubConfig = Field(default_factory=GitHubConfig)
+    github: GitHubConfig = Field(...)
     global_filters: FilterConfig = Field(default_factory=FilterConfig, alias="filters")
     repositories: list[RepoConfig]
     llm: LLMConfig | None = None

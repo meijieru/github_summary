@@ -176,7 +176,7 @@ def run_report(
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since)
 
         summary = ""
-        if not skip_summary:
+        if not skip_summary and summarizer:
             logger.info("Generating summary with LLM")
             summary = summarizer.summarize(commits, pull_requests, issues, discussions)
             logger.info(summary)

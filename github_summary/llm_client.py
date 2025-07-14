@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAICompatibleLLMClient(LLMClient):
-    def __init__(self, api_key: str, base_url: str | None = None, model_name: str = "gpt-3.5-turbo"):
+    def __init__(self, api_key: str | None, base_url: str | None = None, model_name: str = "gpt-3.5-turbo"):
         """Initializes the OpenAICompatibleLLMClient.
 
         Args:
@@ -39,4 +39,4 @@ class OpenAICompatibleLLMClient(LLMClient):
         )
         summary = chat_completion.choices[0].message.content
         logger.debug("Received summary from LLM.")
-        return summary
+        return summary or ""
