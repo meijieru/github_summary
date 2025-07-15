@@ -5,12 +5,12 @@ This module contains all GraphQL queries used in the application.
 # Note: fragments are not used because they are not supported by the current version of the graphql client.
 
 GET_COMMITS_QUERY = """
-query($owner: String!, $repo: String!, $since: GitTimestamp, $until: GitTimestamp, $author: String, $path: String, $cursor: String) {
+query($owner: String!, $repo: String!, $since: GitTimestamp, $until: GitTimestamp, $cursor: String) {
     repository(owner: $owner, name: $repo) {
         defaultBranchRef {
             target {
                 ... on Commit {
-                    history(first: 100, after: $cursor, since: $since, until: $until, author: { id: $author }, path: $path) {
+                    history(first: 100, after: $cursor, since: $since, until: $until) {
                         pageInfo {
                             endCursor
                             hasNextPage
