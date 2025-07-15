@@ -128,6 +128,7 @@ def test_github_service_pull_requests(mock_requests):
                         {
                             "number": 101,
                             "title": "Test PR",
+                            "body": "Test PR body",
                             "author": {"login": "pr_author"},
                             "state": "CLOSED",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -149,6 +150,7 @@ def test_github_service_pull_requests(mock_requests):
     assert len(pull_requests) == 1
     assert pull_requests[0].title == "Test PR"
     assert pull_requests[0].author == "pr_author"
+    assert pull_requests[0].body == "Test PR body"
 
 
 def test_github_service_pull_requests_exclude_regex(mock_requests):
@@ -162,6 +164,7 @@ def test_github_service_pull_requests_exclude_regex(mock_requests):
                         {
                             "number": 1,
                             "title": "feat: new feature",
+                            "body": "Test body",
                             "author": {"login": "pr_author"},
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -172,6 +175,7 @@ def test_github_service_pull_requests_exclude_regex(mock_requests):
                         {
                             "number": 2,
                             "title": "WIP: work in progress",
+                            "body": "Test body",
                             "author": {"login": "pr_author"},
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -212,6 +216,7 @@ def test_github_service_issues(mock_requests):
                     {
                         "number": 1,
                         "title": "Test Issue",
+                        "body": "Test Issue body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -223,10 +228,13 @@ def test_github_service_issues(mock_requests):
     }
 
     service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=False)
+    repo = RepoConfig(name="owner/repo", include_issues=True)
     filters = FilterConfig()
     issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 0
+    assert len(issues) == 1
+    assert issues[0].title == "Test Issue"
+    assert issues[0].body == "Test Issue body"
+
 
 
 def test_github_service_issues_exclude_regex(mock_requests):
@@ -239,6 +247,7 @@ def test_github_service_issues_exclude_regex(mock_requests):
                     {
                         "number": 1,
                         "title": "feat: new feature",
+                        "body": "Test body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -247,6 +256,7 @@ def test_github_service_issues_exclude_regex(mock_requests):
                     {
                         "number": 2,
                         "title": "Bug: something is broken",
+                        "body": "Test body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -276,6 +286,7 @@ def test_github_service_issues_filter_tag(mock_requests):
                     {
                         "number": 1,
                         "title": "Issue with bug tag",
+                        "body": "Test body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -307,6 +318,7 @@ def test_github_service_pull_requests_filter_state(mock_requests):
                         {
                             "number": 1,
                             "title": "Open PR",
+                            "body": "Test body",
                             "author": {"login": "pr_author"},
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -340,6 +352,7 @@ def test_github_service_pull_requests_filter_labels(mock_requests):
                         {
                             "number": 1,
                             "title": "PR with bug label",
+                            "body": "Test body",
                             "author": {"login": "pr_author"},
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -371,9 +384,10 @@ def test_github_service_issues_filter_assignee(mock_requests):
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
                 "nodes": [
                     {
-                        "number": 1,
-                        "title": "Issue assigned to user1",
-                        "author": {"login": "test_author"},
+                            "number": 1,
+                            "title": "Issue assigned to user1",
+                            "body": "Test body",
+                            "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                         "assignees": {"nodes": [{"login": "user1"}]},
@@ -411,6 +425,7 @@ def test_github_service_issues_filter_since_days(mock_requests):
                     {
                         "number": 1,
                         "title": "Old Issue",
+                        "body": "Test body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
@@ -419,6 +434,7 @@ def test_github_service_issues_filter_since_days(mock_requests):
                     {
                         "number": 2,
                         "title": "Recent Issue",
+                        "body": "Test body",
                         "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
@@ -450,6 +466,7 @@ def test_github_service_discussions(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Test Discussion",
+                            "body": "Test Discussion body",
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/1",
@@ -469,6 +486,7 @@ def test_github_service_discussions(mock_requests):
     assert len(discussions) == 1
     assert discussions[0].title == "Test Discussion"
     assert discussions[0].labels == ["bug"]
+    assert discussions[0].body == "Test Discussion body"
 
 
 def test_github_service_discussions_disabled():
@@ -490,6 +508,7 @@ def test_github_service_discussions_filter_since_days(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Old Discussion",
+                            "body": "Test body",
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/1",
@@ -497,6 +516,7 @@ def test_github_service_discussions_filter_since_days(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Recent Discussion",
+                            "body": "Test body",
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/2",
@@ -527,6 +547,7 @@ def test_github_service_discussions_filter_author(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Discussion by Author1",
+                            "body": "Test body",
                             "author": {"login": "author1"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/1",
@@ -534,6 +555,7 @@ def test_github_service_discussions_filter_author(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Discussion by Author2",
+                            "body": "Test body",
                             "author": {"login": "author2"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/2",
@@ -564,6 +586,7 @@ def test_github_service_discussions_exclude_regex(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "General Discussion",
+                            "body": "Test body",
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/1",
@@ -571,6 +594,7 @@ def test_github_service_discussions_exclude_regex(mock_requests):
                         {
                             "id": "D_kwDOJ-L_c84AAQ",
                             "title": "Question: How to do X?",
+                            "body": "Test body",
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/2",

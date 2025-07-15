@@ -43,6 +43,7 @@ query($owner: String!, $repo: String!, $state: [PullRequestState!], $labels: [St
             nodes {
                 number
                 title
+                body
                 author {
                     login
                 }
@@ -73,6 +74,7 @@ query($searchQuery: String!, $cursor: String) {
             ... on Issue {
                 number
                 title
+                body
                 author {
                     login
                 }
@@ -101,6 +103,7 @@ query($owner: String!, $repo: String!, $cursor: String) {
             nodes {
                 id
                 title
+                body
                 author {
                     login
                 }

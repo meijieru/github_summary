@@ -31,6 +31,7 @@ def test_summarizer():
         PullRequest(
             number=101,
             title="Test PR",
+            body="Test PR body",
             author="pr_author",
             state="open",
             created_at="2025-01-01",
@@ -42,6 +43,7 @@ def test_summarizer():
         Issue(
             number=1,
             title="Test Issue",
+            body="Test Issue body",
             author="test_author",
             state="open",
             created_at="2025-01-01",
@@ -52,6 +54,7 @@ def test_summarizer():
         Discussion(
             id="D_kwDOJ-L_c84AAQ",
             title="Test Discussion",
+            body="Test Discussion body",
             author="test_author",
             created_at="2025-01-01",
             html_url="https://github.com/owner/repo/discussions/1",
@@ -106,6 +109,7 @@ def test_summarizer_output_json():
             PullRequest(
                 number=101,
                 title="Test PR",
+                body="Test PR body",
                 author="pr_author",
                 state="open",
                 created_at="2025-01-01",
@@ -117,6 +121,7 @@ def test_summarizer_output_json():
             Issue(
                 number=1,
                 title="Test Issue",
+                body="Test Issue body",
                 author="test_author",
                 state="open",
                 created_at="2025-01-01",
@@ -127,6 +132,7 @@ def test_summarizer_output_json():
             Discussion(
                 id="D_kwDOJ-L_c84AAQ",
                 title="Test Discussion",
+                body="Test Discussion body",
                 author="test_author",
                 created_at="2025-01-01",
                 html_url="https://github.com/owner/repo/discussions/1",
@@ -158,6 +164,7 @@ def test_summarizer_output_json():
                 PullRequest(
                     number=101,
                     title="Test PR",
+                    body="Test PR body",
                     author="pr_author",
                     state="open",
                     created_at="2025-01-01",
@@ -169,6 +176,7 @@ def test_summarizer_output_json():
                 Issue(
                     number=1,
                     title="Test Issue",
+                    body="Test Issue body",
                     author="test_author",
                     state="open",
                     created_at="2025-01-01",
@@ -179,6 +187,7 @@ def test_summarizer_output_json():
                 Discussion(
                     id="D_kwDOJ-L_c84AAQ",
                     title="Test Discussion",
+                    body="Test Discussion body",
                     author="test_author",
                     created_at="2025-01-01",
                     html_url="https://github.com/owner/repo/discussions/1",

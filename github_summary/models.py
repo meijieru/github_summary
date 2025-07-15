@@ -146,6 +146,7 @@ class Issue(BaseModel):
 
     number: int
     title: str
+    body: str
     author: str
     state: str
     created_at: str
@@ -158,6 +159,7 @@ class PullRequest(BaseModel):
 
     number: int
     title: str
+    body: str
     author: str
     state: str
     created_at: str
@@ -172,6 +174,7 @@ class Discussion(BaseModel):
 
     id: str
     title: str
+    body: str
     author: str
     created_at: str
     html_url: str

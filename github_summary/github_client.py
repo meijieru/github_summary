@@ -196,6 +196,7 @@ class GitHubService:
                 PullRequest(
                     number=item["number"],
                     title=item["title"],
+                    body=item["body"],
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     state=item["state"],
                     created_at=item["createdAt"],
@@ -266,6 +267,7 @@ class GitHubService:
                 Issue(
                     number=item["number"],
                     title=item["title"],
+                    body=item["body"],
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     state=item["state"],
                     created_at=item["createdAt"],
@@ -314,6 +316,7 @@ class GitHubService:
                 Discussion(
                     id=item["id"],
                     title=item["title"],
+                    body=item["body"],
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     created_at=item["createdAt"],
                     html_url=item["url"],
