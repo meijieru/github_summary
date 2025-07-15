@@ -175,15 +175,22 @@ class GitHubService:
             if pr_date < since:
                 continue
 
-            if (
-                filters.pull_requests
-                and filters.pull_requests.author
-                and item["author"]["login"] != filters.pull_requests.author
-            ):
-                continue
-            if filters.pull_requests and filters.pull_requests.exclude_pull_request_titles_regex:
-                if re.search(filters.pull_requests.exclude_pull_request_titles_regex, item["title"]):
+            if filters.pull_requests:
+                if (
+                    filters.pull_requests.author
+                    and item["author"]
+                    and item["author"]["login"] != filters.pull_requests.author
+                ):
                     continue
+                if filters.pull_requests.state and item["state"] != filters.pull_requests.state:
+                    continue
+                if filters.pull_requests.labels:
+                    pr_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
+                    if not all(label in pr_labels for label in filters.pull_requests.labels):
+                        continue
+                if filters.pull_requests.exclude_pull_request_titles_regex:
+                    if re.search(filters.pull_requests.exclude_pull_request_titles_regex, item["title"]):
+                        continue
             pr_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
             filtered_pull_requests.append(
                 PullRequest(
@@ -220,8 +227,6 @@ class GitHubService:
             "is:issue",
             f"created:>{since.isoformat(timespec='seconds').replace('+00:00', 'Z')}",
         ]
-        if filters.issues.type:
-            query_parts.append(f'label:"{filters.issues.type}"')
 
         search_query = " ".join(query_parts)
         variables: dict[str, Any] = {"searchQuery": search_query}
@@ -234,10 +239,29 @@ class GitHubService:
 
         filtered_issues = []
         for item in issues_data:
-            if filters.issues and filters.issues.exclude_issue_titles_regex:
-                if re.search(filters.issues.exclude_issue_titles_regex, item["title"]):
-                    continue
             issue_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
+
+            if filters.issues:
+                if filters.issues.author and item["author"] and item["author"]["login"] != filters.issues.author:
+                    continue
+                if filters.issues.labels:
+                    if not all(label in issue_labels for label in filters.issues.labels):
+                        continue
+                if (
+                    filters.issues.milestone
+                    and item["milestone"]
+                    and item["milestone"]["title"] != filters.issues.milestone
+                ):
+                    continue
+                if (
+                    filters.issues.assignee
+                    and item["assignees"]
+                    and not any(assignee["login"] == filters.issues.assignee for assignee in item["assignees"]["nodes"])
+                ):
+                    continue
+                if filters.issues.exclude_issue_titles_regex:
+                    if re.search(filters.issues.exclude_issue_titles_regex, item["title"]):
+                        continue
             filtered_issues.append(
                 Issue(
                     number=item["number"],

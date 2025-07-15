@@ -28,7 +28,6 @@ class IssueFilterConfig(BaseModel):
     milestone: str | None = None
     labels: list[str] | None = None
     assignee: str | None = None
-    type: str | None = None
     exclude_issue_titles_regex: str | None = None
 
 
