@@ -5,6 +5,7 @@ from github_summary.models import (
     PullRequest,
     Issue,
     Discussion,
+    GitHubConfig,
 )
 from github_summary.config import Config
 
@@ -74,6 +75,7 @@ def test_summarizer_output_json():
         output_dir="output",
         log_level="INFO",
         since_last_run=True,
+        github=GitHubConfig(token="mock_token"),
     )
 
     mock_service = Mock()

@@ -49,6 +49,7 @@ query($owner: String!, $repo: String!, $state: [PullRequestState!], $labels: [St
                 state
                 createdAt
                 mergedAt
+                updatedAt
                 url
                 labels(first: 10) {
                     nodes {

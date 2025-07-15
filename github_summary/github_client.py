@@ -166,7 +166,10 @@ class GitHubService:
 
         filtered_pull_requests = []
         for item in pull_requests_data:
-            pr_date = datetime.fromisoformat(item["createdAt"]).astimezone(UTC)
+            pr_date_str = (
+                item["updatedAt"] if filters.pull_requests.since_filter_type == "updated" else item["createdAt"]
+            )
+            pr_date = datetime.fromisoformat(pr_date_str).astimezone(UTC)
             if pr_date < since:
                 continue
 

@@ -132,6 +132,7 @@ def test_github_service_pull_requests(mock_requests):
                             "state": "CLOSED",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "mergedAt": "2025-01-02T00:00:00Z",
+                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/pull/101",
                         }
                     ],
@@ -165,6 +166,7 @@ def test_github_service_pull_requests_exclude_regex(mock_requests):
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "mergedAt": None,
+                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/pull/1",
                         },
                         {
@@ -174,6 +176,7 @@ def test_github_service_pull_requests_exclude_regex(mock_requests):
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "mergedAt": None,
+                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/pull/2",
                         },
                     ],
@@ -308,6 +311,7 @@ def test_github_service_pull_requests_filter_state(mock_requests):
                             "state": "OPEN",
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "mergedAt": None,
+                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/pull/1",
                         }
                     ],
@@ -341,6 +345,7 @@ def test_github_service_pull_requests_filter_labels(mock_requests):
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "mergedAt": None,
                             "labels": {"nodes": [{"name": "bug"}]},
+                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/pull/1",
                         }
                     ],

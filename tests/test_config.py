@@ -5,6 +5,9 @@ from github_summary.models import Config
 
 def test_load_config_success(tmp_path):
     config_content = """
+    [github]
+    token = "dummy_token"
+
     [filters.commits]
     since_days = 7
 

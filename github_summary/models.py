@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field, model_validator
+from typing import Literal
 
 
 class CommitFilterConfig(BaseModel):
@@ -17,6 +18,7 @@ class PullRequestFilterConfig(BaseModel):
     state: str | None = None
     labels: list[str] | None = None
     exclude_pull_request_titles_regex: str | None = None
+    since_filter_type: Literal["updated", "created"] = "updated"
 
 
 class IssueFilterConfig(BaseModel):
