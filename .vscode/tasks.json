@@ -5,7 +5,7 @@
 			"type": "shell",
 			"label": "generate full summary",
 			"command": "uv",
-			"args": ["run", "github_summary", "summarize"]
+			"args": ["run", "github_summary", "summarize", "--save", "--save-markdown"]
 		},
 		{
 			"type": "shell",
