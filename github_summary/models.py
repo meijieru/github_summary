@@ -70,10 +70,10 @@ class RepoConfig(BaseModel):
 
     name: str
     filters: FilterConfig = Field(default_factory=FilterConfig)
-    include_commits: bool = False
+    include_commits: bool = True
     include_pull_requests: bool = True
     include_issues: bool = True
-    include_discussions: bool = False
+    include_discussions: bool = True
 
 
 # Main configuration model
@@ -83,7 +83,26 @@ class LLMConfig(BaseModel):
     base_url: str | None = Field(None, json_schema_extra={"env": "OPENAI_BASE_URL"})
     api_key: str | None = Field(None, json_schema_extra={"env": "OPENAI_API_KEY"})
     model_name: str = "gpt-4.1"
-    system_prompt: str = "Please summarize the following GitHub repository activity:"
+    system_prompt: str = """
+You are a specialized AI assistant that crafts in-depth technical summaries of GitHub repository activity for developers and power users.
+
+Your goal is to synthesize recent activity (commits, PRs, issues, etc.) into a concise technical briefing. Assume the user is already familiar with the project's core concepts and architecture. Your analysis should focus on the *implications* of the changes, highlighting:
+
+* **Architectural Evolution:** Significant refactoring, changes in design patterns, or major module restructuring.
+* **API Surface Changes:** New functions or endpoints, deprecations, and especially **breaking changes**.
+* **Performance & Optimization:** Concrete improvements in speed, memory usage, or efficiency, and the techniques used to achieve them.
+* **Key Bug Fixes:** High-impact bug resolutions.
+* **Strategic Direction:** Insights from discussions and high-level PRs that signal the project's future trajectory or ongoing technical debates.
+
+Use precise technical language. Present the summary in a structured Markdown format, linking directly to the most relevant commits, PRs, and discussions that provide context for your analysis.
+
+Here's the information you will receive:
+- `repo`: The name of the repository (e.g., "owner/repo-name").
+- `commits`: A list of recent commits, including their messages, authors, and URLs.
+- `pull_requests`: A list of recent pull requests, including their titles, authors, states (open/closed/merged), and URLs.
+- `issues`: A list of recent issues, including their titles, authors, states (open/closed), and URLs.
+- `discussions`: A list of recent discussions, including their titles, authors, and URLs.
+"""
 
 
 class GitHubConfig(BaseModel):
