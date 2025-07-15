@@ -178,7 +178,7 @@ def run_report(
             else:
                 logger.info("Generating summary with LLM")
                 summary = summarizer.summarize(output_data)
-                logger.info(summary)
+                logger.debug(summary)
 
         if save_markdown and summary:
             output_dir = Path(config.output_dir)
