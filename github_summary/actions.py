@@ -175,11 +175,22 @@ def run_report(
         logger.info("Processing repository: %s", repo.name)
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since)
 
+        output_data = {
+            "repo": repo.name,
+            "commits": [c.model_dump() for c in commits],
+            "pull_requests": [pr.model_dump() for pr in pull_requests],
+            "issues": [i.model_dump() for i in issues],
+            "discussions": [d.model_dump() for d in discussions],
+        }
         summary = ""
         if not skip_summary and summarizer:
-            logger.info("Generating summary with LLM")
-            summary = summarizer.summarize(commits, pull_requests, issues, discussions)
-            logger.info(summary)
+            if not commits and not pull_requests and not issues and not discussions:
+                logger.info("No new updates found.")
+                summary = "No new updates."
+            else:
+                logger.info("Generating summary with LLM")
+                summary = summarizer.summarize(output_data)
+                logger.info(summary)
 
         if save_markdown and summary:
             output_dir = Path(config.output_dir)
@@ -191,13 +202,6 @@ def run_report(
             logger.info("Summary saved to %s", file_path)
 
         if save:
-            output_data = {
-                "repo": repo.name,
-                "commits": [c.model_dump() for c in commits],
-                "pull_requests": [pr.model_dump() for pr in pull_requests],
-                "issues": [i.model_dump() for i in issues],
-                "discussions": [d.model_dump() for d in discussions],
-            }
             output_dir = Path(config.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
             file_name = f"{repo.name.replace('/', '_')}_summary.json"

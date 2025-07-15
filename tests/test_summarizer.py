@@ -58,7 +58,14 @@ def test_summarizer():
         )
     ]
 
-    summary = summarizer.summarize(commits, pull_requests, issues, discussions)
+    info = {
+        "repo": "test_owner/test_repo",
+        "commits": [c.model_dump() for c in commits],
+        "pull_requests": [pr.model_dump() for pr in pull_requests],
+        "issues": [i.model_dump() for i in issues],
+        "discussions": [d.model_dump() for d in discussions],
+    }
+    summary = summarizer.summarize(info)
 
     mock_llm_client.generate_summary.assert_called_once()
     assert summary == "Mocked LLM Summary"

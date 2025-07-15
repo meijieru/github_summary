@@ -143,6 +143,7 @@ class PullRequest(BaseModel):
     author: str
     state: str
     created_at: str
+    updated_at: str | None = None
     merged_at: str | None = None
     html_url: str
     labels: list[str] = Field(default_factory=list)

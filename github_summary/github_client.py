@@ -192,6 +192,7 @@ class GitHubService:
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     state=item["state"],
                     created_at=item["createdAt"],
+                    updated_at=item["updatedAt"],
                     merged_at=item["mergedAt"],
                     html_url=item["url"],
                     labels=pr_labels,
