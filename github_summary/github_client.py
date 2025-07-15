@@ -98,6 +98,7 @@ class GitHubService:
         Args:
             repo: The repository configuration.
             filters: The filter configuration to apply.
+            since: The datetime from which to fetch commits.
 
         Returns:
             A list of Commit objects.
@@ -143,6 +144,7 @@ class GitHubService:
         Args:
             repo: The repository configuration.
             filters: The filter configuration to apply.
+            since: The datetime from which to fetch pull requests.
 
         Returns:
             A list of PullRequest objects.
@@ -203,6 +205,7 @@ class GitHubService:
         Args:
             repo: The repository configuration.
             filters: The filter configuration to apply.
+            since: The datetime from which to fetch issues.
 
         Returns:
             A list of Issue objects.
@@ -253,6 +256,7 @@ class GitHubService:
         Args:
             repo: The repository configuration.
             filters: The filter configuration to apply.
+            since: The datetime from which to fetch discussions.
 
         Returns:
             A list of Discussion objects.
