@@ -236,7 +236,6 @@ def test_github_service_issues(mock_requests):
     assert issues[0].body == "Test Issue body"
 
 
-
 def test_github_service_issues_exclude_regex(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -384,10 +383,10 @@ def test_github_service_issues_filter_assignee(mock_requests):
                 "pageInfo": {"hasNextPage": False, "endCursor": None},
                 "nodes": [
                     {
-                            "number": 1,
-                            "title": "Issue assigned to user1",
-                            "body": "Test body",
-                            "author": {"login": "test_author"},
+                        "number": 1,
+                        "title": "Issue assigned to user1",
+                        "body": "Test body",
+                        "author": {"login": "test_author"},
                         "state": "OPEN",
                         "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                         "assignees": {"nodes": [{"login": "user1"}]},

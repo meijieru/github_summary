@@ -94,6 +94,7 @@ def test_summarizer_output_json():
         patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, summarizer_instance)),
         patch("github_summary.actions.logger.info") as mock_logger_info,
         patch("json.dump") as mock_json_dump,
+        patch("github_summary.actions.set_last_run_time") as mock_set_last_run_time,
         patch.object(summarizer_instance, "summarize", return_value="Mocked LLM Summary") as mock_summarize_method,
     ):
         mock_service.get_commits.return_value = [

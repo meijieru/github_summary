@@ -22,21 +22,9 @@ from github_summary.github_client import GitHubService
 from github_summary.summarizer import Summarizer
 from github_summary.llm_client import OpenAICompatibleLLMClient
 
+from github_summary.last_run_manager import get_last_run_time, set_last_run_time
+
 logger = logging.getLogger(__name__)
-
-LAST_RUN_FILE = Path("log/last_run")
-
-
-def _get_last_run_time() -> datetime | None:
-    """Reads the last run time from the .last_run file."""
-    if LAST_RUN_FILE.exists():
-        return datetime.fromisoformat(LAST_RUN_FILE.read_text()).astimezone(UTC)
-    return None
-
-
-def _set_last_run_time() -> None:
-    """Writes the current time to the .last_run file."""
-    LAST_RUN_FILE.write_text(datetime.now(UTC).isoformat())
 
 
 def _setup_logging(log_level: str):
@@ -163,7 +151,7 @@ def run_report(
 
     since = datetime.now(UTC) - timedelta(days=config.fallback_lookback_days)
     if config.since_last_run:
-        last_run_time = _get_last_run_time()
+        last_run_time = get_last_run_time(config_path)
 
         if not last_run_time:
             logger.warning("No last run time found, falling back to %s days.", config.fallback_lookback_days)
@@ -211,4 +199,4 @@ def run_report(
             logger.info("Report saved to %s", file_path)
 
     if config.since_last_run:
-        _set_last_run_time()
+        set_last_run_time(config_path)
