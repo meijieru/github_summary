@@ -309,6 +309,7 @@ class GitHubService:
                 filters.discussions.exclude_discussion_titles_regex, item["title"]
             ):
                 continue
+            discussion_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
             filtered_discussions.append(
                 Discussion(
                     id=item["id"],
@@ -316,6 +317,7 @@ class GitHubService:
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     created_at=item["createdAt"],
                     html_url=item["url"],
+                    labels=discussion_labels,
                 )
             )
         return filtered_discussions

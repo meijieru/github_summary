@@ -453,6 +453,7 @@ def test_github_service_discussions(mock_requests):
                             "author": {"login": "test_author"},
                             "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/discussions/1",
+                            "labels": {"nodes": [{"name": "bug"}]},
                         }
                     ],
                 }
@@ -467,6 +468,7 @@ def test_github_service_discussions(mock_requests):
     discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
     assert len(discussions) == 1
     assert discussions[0].title == "Test Discussion"
+    assert discussions[0].labels == ["bug"]
 
 
 def test_github_service_discussions_disabled():

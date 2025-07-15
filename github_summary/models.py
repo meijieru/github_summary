@@ -175,3 +175,4 @@ class Discussion(BaseModel):
     author: str
     created_at: str
     html_url: str
+    labels: list[str] = Field(default_factory=list)

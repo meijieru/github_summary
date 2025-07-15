@@ -106,6 +106,11 @@ query($owner: String!, $repo: String!, $cursor: String) {
                 }
                 createdAt
                 url
+                labels(first: 10) {
+                    nodes {
+                        name
+                    }
+                }
             }
         }
     }
