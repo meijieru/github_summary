@@ -1,9 +1,15 @@
 import json
 import logging
-import textwrap
+from datetime import datetime
 from typing import Protocol
 
 logger = logging.getLogger(__name__)
+
+PROMPT_TEMPLATE = """{system_prompt}
+
+```json
+{info}
+```"""
 
 
 class LLMClient(Protocol):
@@ -29,7 +35,7 @@ class Summarizer:
         self.system_prompt = system_prompt
         self.language = language
 
-    def summarize(self, info) -> str:
+    def summarize(self, info: dict, last_run_time: datetime | None) -> str:
         """Generates a summary of GitHub activity using the LLM client."""
 
         logger.info("Generating LLM prompt.")
@@ -37,12 +43,9 @@ class Summarizer:
         if self.language:
             system_prompt += f"\nPlease provide the summary in {self.language}. Do not translate common technical terms or abbreviations."
 
-        prompt = textwrap.dedent(f"""
-        {system_prompt}
+        if last_run_time:
+            system_prompt += f"\n\nThe last run was at {last_run_time.strftime('%Y-%m-%d %H:%M:%S UTC')}."
 
-        ```json
-        {json.dumps(info, indent=2)}
-        ```
-        """).strip()
+        prompt = PROMPT_TEMPLATE.format(system_prompt=system_prompt, info=json.dumps(info, indent=2))
         logger.debug("Generated prompt: %s", prompt)
         return self.llm_client.generate_summary(prompt)

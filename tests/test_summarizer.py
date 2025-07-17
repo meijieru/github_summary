@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 from github_summary.config import Config
@@ -67,7 +68,7 @@ def test_summarizer():
         "issues": [i.model_dump() for i in issues],
         "discussions": [d.model_dump() for d in discussions],
     }
-    summary = summarizer.summarize(info)
+    summary = summarizer.summarize(info, datetime.now(UTC))
 
     mock_llm_client.generate_summary.assert_called_once()
     assert summary == "Mocked LLM Summary"
@@ -91,7 +92,6 @@ def test_summarizer_output_json():
 
     with (
         patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, summarizer_instance)),
-        patch("github_summary.actions.logger.info") as mock_logger_info,
         patch("json.dump") as mock_json_dump,
         patch("github_summary.actions.set_last_run_time") as mock_set_last_run_time,
         patch.object(summarizer_instance, "summarize", return_value="Mocked LLM Summary") as mock_summarize_method,
@@ -198,5 +198,4 @@ def test_summarizer_output_json():
         # Check the first argument of json.dump (the data)
         assert mock_json_dump.call_args[0][0] == expected_output_data
 
-        # Assert that console.print was called with the summary
-        mock_logger_info.assert_any_call("Mocked LLM Summary")
+        mock_set_last_run_time.assert_called_once_with("config.toml")

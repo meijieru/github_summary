@@ -180,7 +180,7 @@ def run_report(
                 summary = "No new updates."
             else:
                 logger.info("Generating summary with LLM")
-                summary = summarizer.summarize(output_data)
+                summary = summarizer.summarize(output_data, since)
                 logger.debug(summary)
 
         if save_markdown and summary:
@@ -189,7 +189,7 @@ def run_report(
             file_name = f"{repo.name.replace('/', '_')}_summary.md"
             file_path = output_dir / file_name
             with open(file_path, "w") as f:
-                f.write(f"# Summary for {repo.name}\n\n{summary}")
+                f.write(f"## Summary for {repo.name}\n\n{summary}")
             logger.info("Summary saved to %s", file_path)
 
         if save:
