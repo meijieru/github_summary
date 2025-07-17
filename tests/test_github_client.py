@@ -1,15 +1,17 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
+
+import pytest
+
 from github_summary.github_client import GitHubService
 from github_summary.models import (
-    FilterConfig,
-    RepoConfig,
     CommitFilterConfig,
-    PullRequestFilterConfig,
-    IssueFilterConfig,
     DiscussionFilterConfig,
+    FilterConfig,
+    IssueFilterConfig,
+    PullRequestFilterConfig,
+    RepoConfig,
 )
-from datetime import datetime, timedelta, UTC
 
 
 @pytest.fixture

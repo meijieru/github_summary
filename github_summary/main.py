@@ -1,9 +1,10 @@
-import typer
 import logging
 
+import typer
+
 from github_summary.actions import run_report
-from github_summary.github_client import GitHubService
 from github_summary.config import load_config
+from github_summary.github_client import GitHubService
 
 logger = logging.getLogger(__name__)
 

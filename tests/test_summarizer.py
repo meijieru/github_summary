@@ -1,17 +1,16 @@
 from unittest.mock import Mock, patch
+
+from github_summary.config import Config
+from github_summary.main import app as cli_app
 from github_summary.models import (
-    RepoConfig,
     Commit,
-    PullRequest,
-    Issue,
     Discussion,
     GitHubConfig,
+    Issue,
+    PullRequest,
+    RepoConfig,
 )
-from github_summary.config import Config
-
-
 from github_summary.summarizer import Summarizer
-from github_summary.main import app as cli_app
 
 
 def test_summarizer():

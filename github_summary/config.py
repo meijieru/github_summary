@@ -1,8 +1,10 @@
-import toml
 import logging
+
+import toml
 from dotenv import load_dotenv
-from github_summary.models import Config
 from pydantic import ValidationError
+
+from github_summary.models import Config
 
 logger = logging.getLogger(__name__)
 

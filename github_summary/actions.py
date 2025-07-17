@@ -1,28 +1,27 @@
-import os
 import json
-import typer
-from pathlib import Path
 import logging
-from rich.logging import RichHandler
+import os
+from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-from datetime import datetime, UTC, timedelta
+import typer
+from rich.logging import RichHandler
 
 from github_summary.config import load_config
-from github_summary.models import (
-    FilterConfig,
-    Config,
-    RepoConfig,
-    Commit,
-    PullRequest,
-    Issue,
-    Discussion,
-)
 from github_summary.github_client import GitHubService
-from github_summary.summarizer import Summarizer
-from github_summary.llm_client import OpenAICompatibleLLMClient
-
 from github_summary.last_run_manager import get_last_run_time, set_last_run_time
+from github_summary.llm_client import OpenAICompatibleLLMClient
+from github_summary.models import (
+    Commit,
+    Config,
+    Discussion,
+    FilterConfig,
+    Issue,
+    PullRequest,
+    RepoConfig,
+)
+from github_summary.summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,11 @@ def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer |
         llm_client = OpenAICompatibleLLMClient(
             api_key=config.llm.api_key, base_url=config.llm.base_url, model_name=config.llm.model_name
         )
-        summarizer = Summarizer(llm_client=llm_client, system_prompt=config.llm.system_prompt)
+        summarizer = Summarizer(
+            llm_client=llm_client,
+            system_prompt=config.llm.system_prompt,
+            language=config.llm.language,
+        )
     return config, service, summarizer
 
 

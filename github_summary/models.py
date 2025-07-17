@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
 from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class CommitFilterConfig(BaseModel):
@@ -82,6 +83,7 @@ class LLMConfig(BaseModel):
     base_url: str | None = Field(None, json_schema_extra={"env": "OPENAI_BASE_URL"})
     api_key: str | None = Field(None, json_schema_extra={"env": "OPENAI_API_KEY"})
     model_name: str = "gpt-4.1"
+    language: str | None = None
     system_prompt: str = """
 You are a specialized AI assistant that crafts in-depth technical summaries of GitHub repository activity for developers and power users.
 

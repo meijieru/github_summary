@@ -1,5 +1,7 @@
-from openai import OpenAI
 import logging
+
+from openai import OpenAI
+
 from github_summary.summarizer import LLMClient
 
 logger = logging.getLogger(__name__)

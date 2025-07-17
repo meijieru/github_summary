@@ -1,4 +1,5 @@
 import pytest
+
 from github_summary.config import load_config
 from github_summary.models import Config
 

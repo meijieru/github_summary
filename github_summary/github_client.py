@@ -1,11 +1,10 @@
-import re
-import requests
 import logging
-from datetime import datetime, UTC
-from typing import Any
+import re
 from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
-logger = logging.getLogger(__name__)
+import requests
 
 from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, RepoConfig
 from github_summary.queries import (
@@ -15,6 +14,8 @@ from github_summary.queries import (
     GET_ISSUES_QUERY,
     GET_PULL_REQUESTS_QUERY,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GraphQLClient:
