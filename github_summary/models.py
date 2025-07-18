@@ -138,6 +138,23 @@ class GitHubConfig(BaseModel):
     token: str = Field(..., json_schema_extra={"env": "GITHUB_TOKEN"})
 
 
+class RssConfig(BaseModel):
+    """Configuration for the RSS feed."""
+
+    enabled: bool = False
+    title: str = "GitHub Repository Summaries"
+    link: str = "http://localhost/rss.xml"
+    description: str = "Summaries of recent activity in GitHub repositories."
+    filename: str = "rss.xml"
+
+
+class ScheduleConfig(BaseModel):
+    """Configuration for scheduling the summarization."""
+
+    enabled: bool = False
+    run_at: list[str] = Field(default_factory=lambda: ["06:00"])  # in HH:MM format
+
+
 class Config(BaseModel):
     """Main application configuration, including GitHub settings, global filters, repositories, and LLM settings."""
 
@@ -145,6 +162,8 @@ class Config(BaseModel):
     global_filters: FilterConfig = Field(default_factory=FilterConfig, alias="filters")
     repositories: list[RepoConfig]
     llm: LLMConfig | None = None
+    rss: RssConfig | None = None
+    schedule: ScheduleConfig | None = None
     output_dir: str = "output"
     log_level: str = "INFO"
     since_last_run: bool = True

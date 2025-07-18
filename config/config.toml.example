@@ -21,3 +21,14 @@ base_url = "YOUR_LLM_BASE_URL" # Optional, e.g., for local LLMs
 model_name = "gpt-4.1" # Or your preferred model
 system_prompt = "Please summarize the following GitHub repository activity:"
 language = "Simplified Chinese"
+
+[rss]
+enabled = false
+title = "GitHub Repository Summaries"
+link = "http://localhost/rss.xml"
+description = "Summaries of recent activity in GitHub repositories."
+filename = "rss.xml"
+
+[schedule]
+enabled = false
+run_at = ["06:00", "18:00"] # in HH:MM format

@@ -1,5 +1,7 @@
 import logging
+import time
 
+import schedule
 import typer
 
 from github_summary.actions import run_report
@@ -22,6 +24,20 @@ def summarize(
 ):
     """Summarize the recent progress in GitHub repositories."""
     run_report(config_path, save, save_markdown, skip_summary)
+
+
+@app.command()
+def schedule_run(
+    config_path: str = typer.Option("config/config.toml", "--config", "-c", help="Path to the configuration file."),
+):
+    """Run the summarization on a schedule."""
+    config = load_config(config_path)
+    if config.schedule and config.schedule.enabled:
+        for run_time in config.schedule.run_at:
+            schedule.every().day.at(run_time).do(run_report, config_path, False, False, False)
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
 
 
 @utils_app.command("list-labels")

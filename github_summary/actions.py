@@ -21,6 +21,7 @@ from github_summary.models import (
     PullRequest,
     RepoConfig,
 )
+from github_summary.rss import add_entry_to_feed, create_rss_feed, save_rss_feed
 from github_summary.summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,9 @@ def run_report(
         else:
             since = last_run_time
 
+    if config.rss and config.rss.enabled:
+        feed = create_rss_feed(config.rss)
+
     for repo in config.repositories:
         logger.info("Generating full report for %s", repo.name)
         logger.info("Processing repository: %s", repo.name)
@@ -183,6 +187,9 @@ def run_report(
                 summary = summarizer.summarize(output_data, since)
                 logger.debug(summary)
 
+            if config.rss and config.rss.enabled:
+                add_entry_to_feed(feed, summary, repo.name)
+
         if save_markdown and summary:
             output_dir = Path(config.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -203,3 +210,6 @@ def run_report(
 
     if config.since_last_run:
         set_last_run_time(config_path)
+
+    if config.rss and config.rss.enabled:
+        save_rss_feed(feed, config.rss, config.output_dir)
