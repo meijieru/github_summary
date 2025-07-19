@@ -9,16 +9,8 @@ GitHub Repository Summarizer is a powerful command-line tool designed to fetch a
 - **AI-Powered Summaries:** Integrates with LLMs to create intelligent and context-aware summaries of repository activity.
 - **Efficient API Usage:** Primarily uses GitHub's GraphQL API for fast and efficient data retrieval.
 - **Configurable System Prompt:** Customize the LLM's system prompt for tailored summaries.
-
-## 🛠️ Development Principles
-
-- **Prioritize GraphQL API:** We prefer using the [GitHub GraphQL API](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql) for its efficiency and ability to fetch precisely the data needed in a single request.
-- **Code Style:** The project adheres to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) to ensure code is readable, consistent, and maintainable.
-- **Code Quality:** We maintain high standards for code quality through comprehensive docstrings and complete type annotations.
-
-## 📦 Project Management
-
-This project uses **uv** for fast and reliable dependency and virtual environment management.
+- **RSS Feed:** Can generate an RSS feed.
+- **Scheduled Runs:** Supports scheduling the summarization process to run automatically.
 
 ## ⚙️ Setup and Installation
 
@@ -119,12 +111,28 @@ To list all labels for a given repository:
 python -m github_summary utils list-labels <owner/repo_name>
 ```
 
-**Example:**
+### RSS Feed Generation
+The CLI can generate an RSS feed of the summaries. This feature can be enabled and configured in the `config.toml` file under the `[rss]` section.
 
-```bash
-python -m github_summary utils list-labels meijieru/github_summary
+Example `config.toml` snippet for RSS:
+```toml
+[rss]
+enabled = true
+title = "GitHub Repository Summaries"
+link = "http://localhost/rss.xml"
+description = "Summaries of recent activity in GitHub repositories."
+filename = "rss.xml"
 ```
 
+### Scheduled Runs
+The CLI supports scheduling the summarization process to run automatically at specified times. This is configured in the `config.toml` file under the `[schedule]` section.
+
+Example `config.toml` snippet for scheduling:
+```toml
+[schedule]
+enabled = true
+run_at = ["06:00", "18:00"] # in HH:MM format (UTC)
+```
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests.
