@@ -48,4 +48,9 @@ class Summarizer:
 
         prompt = PROMPT_TEMPLATE.format(system_prompt=system_prompt, info=json.dumps(info, indent=2))
         logger.debug("Generated prompt: %s", prompt)
-        return self.llm_client.generate_summary(prompt)
+        summary = self.llm_client.generate_summary(prompt)
+        if summary.startswith("```markdown"):
+            summary = summary[len("```markdown") :].strip()
+        if summary.endswith("```"):
+            summary = summary[: -len("```")].strip()
+        return summary
