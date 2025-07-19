@@ -151,11 +151,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/6b/59/be0a6f852b5dfbf19
 
 [[package]]
 name = "github-summary"
-version = "0.4"
+version = "0.6"
 source = { virtual = "." }
 dependencies = [
     { name = "feedgen" },
     { name = "ipdb" },
+    { name = "markdown-it-py" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "pytest" },
@@ -171,6 +172,7 @@ dependencies = [
 requires-dist = [
     { name = "feedgen" },
     { name = "ipdb" },
+    { name = "markdown-it-py" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "pytest" },
