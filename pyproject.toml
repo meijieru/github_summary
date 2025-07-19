@@ -16,6 +16,7 @@ dependencies = [
     "ipdb",
     "feedgen",
     "schedule",
+    "markdown-it-py",
 ]
 
 [project.scripts]

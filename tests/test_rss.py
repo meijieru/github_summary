@@ -26,6 +26,29 @@ def test_add_entry_to_feed():
     assert entry.description() == "Test summary"
 
 
+def test_add_entry_to_feed_with_markdown():
+    rss_config = RssConfig()
+    feed = create_rss_feed(rss_config)
+    markdown_summary = """# Heading
+
+- Item 1
+- Item 2"""
+    add_entry_to_feed(feed, markdown_summary, "owner/repo")
+    assert len(feed.entry()) == 1
+    entry = feed.entry()[0]
+    assert entry.title() == "Summary for owner/repo"
+    assert entry.description() == markdown_summary
+    assert (
+        entry.content()["content"]
+        == """<h1>Heading</h1>
+<ul>
+<li>Item 1</li>
+<li>Item 2</li>
+</ul>
+"""
+    )
+
+
 def test_save_rss_feed(tmp_path):
     rss_config = RssConfig(filename="test.xml")
     feed = create_rss_feed(rss_config)

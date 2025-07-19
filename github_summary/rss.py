@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from feedgen.feed import FeedGenerator
+from markdown_it import MarkdownIt
 
 from github_summary.models import RssConfig
 
@@ -32,9 +33,13 @@ def add_entry_to_feed(feed: FeedGenerator, summary: str, repo_name: str):
         summary: The summary text to add.
         repo_name: The name of the repository.
     """
+    md = MarkdownIt()
+    html_summary = md.render(summary)
+
     entry = feed.add_entry()
     entry.title(f"Summary for {repo_name}")
     entry.description(summary)
+    entry.content(html_summary, type="html")
 
 
 def save_rss_feed(feed: FeedGenerator, rss_config: RssConfig, output_dir: str):
