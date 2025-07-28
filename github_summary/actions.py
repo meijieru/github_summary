@@ -77,7 +77,11 @@ def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer |
     summarizer = None
     if config.llm:
         llm_client = OpenAICompatibleLLMClient(
-            api_key=config.llm.api_key, base_url=config.llm.base_url, model_name=config.llm.model_name
+            api_key=config.llm.api_key,
+            base_url=config.llm.base_url,
+            model_name=config.llm.model_name,
+            retries=config.llm.retries,
+            retry_delay=config.llm.retry_delay,
         )
         summarizer = Summarizer(
             llm_client=llm_client,

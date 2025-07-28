@@ -19,6 +19,8 @@ include_discussions = true
 api_key = "YOUR_LLM_API_KEY"
 base_url = "YOUR_LLM_BASE_URL" # Optional, e.g., for local LLMs
 model_name = "gpt-4.1" # Or your preferred model
+retries = 3
+retry_delay = 1
 system_prompt = "Please summarize the following GitHub repository activity:"
 language = "Simplified Chinese"
 

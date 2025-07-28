@@ -17,6 +17,7 @@ dependencies = [
     "feedgen",
     "schedule",
     "markdown-it-py",
+    "tenacity",
 ]
 
 [project.scripts]
