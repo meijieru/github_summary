@@ -1,0 +1,34 @@
+
+# Ignore Git and CI/CD specific files
+.git
+.github
+.gitignore
+
+# Ignore Python specific files
+.python-version
+.pytest_cache
+.ruff_cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore IDE and editor specific files
+.vscode
+.idea
+
+# Ignore build and distribution files
+build
+dist
+*.egg-info
+
+# Ignore configuration and log files
+config/config.toml
+config/config_debug.toml
+log
+output
+
+# Ignore other files
+.tmuxp.yaml
+README.md
