@@ -1,0 +1,24 @@
+session_name: github_summary
+# shell_command_before:
+#   - "[ -f .venv/bin/activate ] && source .venv/bin/activate && reset"
+windows:
+  - window_name: nvim
+    layout: main-horizontal
+    options:
+      main-pane-height: 35
+    panes:
+    - window_name: empty
+      layout: main-horizontal
+      panes:
+        - focus: true
+  - window_name: schedule_run
+    layout: main-horizontal
+    options:
+      main-pane-height: 35
+    panes:
+        - shell_command:
+            - uv run github-summary schedule-run
+          focus: true
+        - shell_command:
+            - cd output && python3 -m http.server --bind 0.0.0.0 --directory . 8000 --cgi
+          focus: false
