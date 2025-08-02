@@ -53,6 +53,11 @@ class OpenAICompatibleLLMClient(LLMClient):
             ],
             model=self.model_name,
         )
-        summary = chat_completion.choices[0].message.content
+        try:
+            summary = chat_completion.choices[0].message.content
+        except (IndexError, AttributeError) as e:
+            logger.error("Failed to parse summary from LLM response: %s", e)
+            logger.error("Full LLM response: %s", chat_completion)
+            raise
         logger.debug("Received summary from LLM.")
         return summary or ""
