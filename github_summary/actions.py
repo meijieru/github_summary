@@ -34,7 +34,7 @@ def _setup_logging(log_level: str):
     # Console handler
     console_handler = RichHandler(
         rich_tracebacks=True,
-        tracebacks_show_locals=True,
+        tracebacks_show_locals=False,
     )
     console_handler.setFormatter(logging.Formatter("%(message)s"))
 
@@ -87,6 +87,7 @@ def _get_services(config_path: str) -> tuple[Config, GitHubService, Summarizer |
             llm_client=llm_client,
             system_prompt=config.llm.system_prompt,
             language=config.llm.language,
+            timezone=config.timezone,
         )
     return config, service, summarizer
 

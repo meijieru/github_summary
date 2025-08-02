@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
+from tzlocal import get_localzone_name
 
 
 class CommitFilterConfig(BaseModel):
@@ -170,6 +171,7 @@ class Config(BaseModel):
     log_level: str = "INFO"
     since_last_run: bool = True
     fallback_lookback_days: int = 7
+    timezone: str = Field(default_factory=get_localzone_name)
 
     @model_validator(mode="after")
     def merge_global_filters(self) -> Config:
