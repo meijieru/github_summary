@@ -113,7 +113,9 @@ def test_github_service_commits_exclude_regex(mock_requests):
 
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_commits=True)
-    filters = FilterConfig(commits=CommitFilterConfig(exclude_commit_messages_regex="^(vim-patch|fix|doc update|chore)"))
+    filters = FilterConfig(
+        commits=CommitFilterConfig(exclude_commit_messages_regex="^(vim-patch|fix|doc update|chore)")
+    )
 
     commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
     assert len(commits) == 1
