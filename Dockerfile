@@ -5,8 +5,8 @@ FROM python:3.11-alpine
 WORKDIR /app
 
 # Copy the requirements file and install dependencies
-COPY pyproject.toml uv.lock ./
-RUN pip install uv && uv pip install --system --from-lock uv.lock
+COPY pyproject.toml ./
+RUN pip install uv && uv pip install --system .
 
 # Copy the rest of the application code
 COPY . .
