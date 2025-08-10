@@ -13,5 +13,6 @@ jobs:
       - name: Release 📦
         uses: googleapis/release-please-action@v4
         with:
-          release-type: simple
+          release-type: python
+          package-name: github-summary
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
