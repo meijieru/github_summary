@@ -18,6 +18,7 @@ dependencies = [
     "schedule",
     "markdown-it-py",
     "tenacity",
+    "tzlocal>=5.3.1",
 ]
 
 [project.scripts]
