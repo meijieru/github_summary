@@ -94,6 +94,15 @@ def test_github_service_commits_exclude_regex(mock_requests):
                                     },
                                     "url": "https://github.com/owner/repo/commit/3",
                                 },
+                                {
+                                    "oid": "4",
+                                    "messageHeadline": "chore(main): release 17.13.0",
+                                    "author": {
+                                        "name": "test_author",
+                                        "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
+                                    },
+                                    "url": "https://github.com/owner/repo/commit/4",
+                                },
                             ],
                         }
                     }
@@ -104,7 +113,7 @@ def test_github_service_commits_exclude_regex(mock_requests):
 
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_commits=True)
-    filters = FilterConfig(commits=CommitFilterConfig(exclude_commit_messages_regex="^(vim-patch|fix|doc update)"))
+    filters = FilterConfig(commits=CommitFilterConfig(exclude_commit_messages_regex="^(vim-patch|fix|doc update|chore)"))
 
     commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
     assert len(commits) == 1
