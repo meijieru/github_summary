@@ -1,4 +1,5 @@
 session_name: github_summary
+start_directory: .
 # shell_command_before:
 #   - "[ -f .venv/bin/activate ] && source .venv/bin/activate && reset"
 windows:
