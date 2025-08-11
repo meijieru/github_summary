@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# Start the scheduler in the background
-uv run github-summary schedule-run &
+set -eu
 
-# Start the HTTP server in the foreground
-cd output && python3 -m http.server --bind 0.0.0.0 --directory . 8000 --cgi
+# Start unified web app (scheduler + static server)
+exec uv run uvicorn github_summary.web:web_app --host 0.0.0.0 --port 8000

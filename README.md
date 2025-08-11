@@ -86,21 +86,20 @@ The Gemini CLI uses a `config.toml` file for its settings. An example configurat
 To generate a summary of repository activity based on your `config.toml`:
 
 ```bash
-python -m github_summary summarize
+github-summary summarize -c config/config.toml
 ```
 
 **Options:**
 
-- `--config -c <path>`: Specify a different path to the configuration file (default: `config/config.toml`).
-- `--since-days <int>`: Override the number of days to look back for activity (e.g., `--since-days 14`).
-- `--author <name>`: Filter activity by a specific author.
+- `--config -c <path>`: Path to the configuration file (default: `config/config.toml`).
 - `--save`: Save the generated report to a JSON file in the `output_dir` specified in `config.toml`.
+- `--save-markdown`: Save the LLM-generated summary as a Markdown file.
 - `--skip-summary`: Skip the LLM-based summary generation and only fetch data.
 
 **Example:**
 
 ```bash
-python -m github_summary summarize --since-days 7 --save
+github-summary summarize -c config/config.toml --save
 ```
 
 ### List Repository Labels
@@ -108,13 +107,15 @@ python -m github_summary summarize --since-days 7 --save
 To list all labels for a given repository:
 
 ```bash
-python -m github_summary utils list-labels <owner/repo_name>
+github-summary utils list-labels <owner/repo_name> -c config/config.toml
 ```
 
 ### RSS Feed Generation
+
 The CLI can generate an RSS feed of the summaries. This feature can be enabled and configured in the `config.toml` file under the `[rss]` section.
 
 Example `config.toml` snippet for RSS:
+
 ```toml
 [rss]
 enabled = true
@@ -125,14 +126,45 @@ filename = "rss.xml"
 ```
 
 ### Scheduled Runs
+
 The CLI supports scheduling the summarization process to run automatically at specified times. This is configured in the `config.toml` file under the `[schedule]` section.
 
 Example `config.toml` snippet for scheduling:
+
 ```toml
 [schedule]
 enabled = true
 run_at = ["06:00", "18:00"] # in HH:MM format (UTC)
 ```
+
+### Web service mode (serving RSS and scheduling)
+
+This project can run as a single-process web service that both serves the RSS output directory and schedules periodic report generation.
+
+- Command: `github-summary web -c config/config.toml --host 0.0.0.0 --port 8000` (or `uv run github-summary web ...` if using uv)
+- Server: Uvicorn (FastAPI app)
+- Static files: Served from `output_dir` configured in `config.toml`
+- Health check: `GET /healthz`
+- Note: The service does not execute a report at startup; it only runs at the scheduled times. If you need an immediate report, run `github-summary summarize` once or enable a near-term schedule.
+
+Example Docker run:
+
+```bash
+docker run --rm -p 8000:8000 \
+docker run --rm -p 8000:8000 \
+    -e GITHUB_TOKEN=xxxx \
+    -e GHSUM_CONFIG_PATH=/app/config/config.toml \
+    -v $(pwd)/config:/app/config \
+    -v $(pwd)/output:/app/output \
+    yourimage:tag
+```
+
+Then access `http://localhost:8000/` for static files (e.g., the RSS file), and `http://localhost:8000/healthz` for health.
+
+Developer tips:
+- Hot reload locally: `github-summary web --reload`
+- Import-style run still works: `uvicorn github_summary.web:web_app`
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests.

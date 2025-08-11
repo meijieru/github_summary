@@ -6,10 +6,15 @@ WORKDIR /app
 
 # Copy the requirements file and install dependencies
 COPY pyproject.toml ./
-RUN pip install uv && uv pip install --system .
 
 # Copy the rest of the application code
 COPY . .
+  
+# Install the project (after copying source so build can find package)
+RUN pip install --no-cache-dir uv && uv pip install --system .
+
+# Expose service port
+EXPOSE 8000
 
 # Set the entrypoint for the container
 COPY docker-entrypoint.sh .

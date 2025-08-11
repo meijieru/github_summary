@@ -19,10 +19,13 @@ dependencies = [
     "markdown-it-py",
     "tenacity",
     "tzlocal>=5.3.1",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
 [project.scripts]
-github-summary = "github_summary.main:app"
+github-summary = "github_summary.main:main"
+github-summary-serve = "github_summary.web:main"
 
 [tool.setuptools]
 packages = ["github_summary"]
