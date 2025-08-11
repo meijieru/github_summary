@@ -151,7 +151,6 @@ Example Docker run:
 
 ```bash
 docker run --rm -p 8000:8000 \
-docker run --rm -p 8000:8000 \
     -e GITHUB_TOKEN=xxxx \
     -e GHSUM_CONFIG_PATH=/app/config/config.toml \
     -v $(pwd)/config:/app/config \

@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import uvicorn
@@ -8,6 +9,19 @@ from fastapi.staticfiles import StaticFiles
 
 from github_summary.config import load_config
 from github_summary.scheduler import ReportScheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown events for the FastAPI app."""
+    config_path = os.getenv("GHSUM_CONFIG_PATH", "config/config.toml")
+    cfg = load_config(config_path)
+    os.makedirs(cfg.output_dir, exist_ok=True)
+
+    scheduler = ReportScheduler(config_path)
+    scheduler.start()
+    yield
+    scheduler.stop()
 
 
 def build_web_app(config_path: Optional[str] = None) -> FastAPI:
@@ -26,21 +40,7 @@ def build_web_app(config_path: Optional[str] = None) -> FastAPI:
     if not config_path:
         config_path = os.getenv("GHSUM_CONFIG_PATH", "config/config.toml")
 
-    app = FastAPI()
-    scheduler: Optional[ReportScheduler] = None
-
-    @app.on_event("startup")
-    def on_startup():
-        nonlocal scheduler
-        cfg = load_config(config_path)
-        os.makedirs(cfg.output_dir, exist_ok=True)
-        scheduler = ReportScheduler(config_path)
-        scheduler.start()
-
-    @app.on_event("shutdown")
-    def on_shutdown():
-        if scheduler:
-            scheduler.stop()
+    app = FastAPI(lifespan=lifespan)
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
@@ -52,10 +52,8 @@ def build_web_app(config_path: Optional[str] = None) -> FastAPI:
     return app
 
 
-# For uvicorn import-style execution: `uvicorn github_summary.web:web_app`
-web_app = build_web_app()
-
-
 def main() -> None:
     """CLI entry that runs the ASGI app using Uvicorn."""
-    uvicorn.run("github_summary.web:web_app", host="0.0.0.0", port=8000, reload=False, workers=1)
+    # For uvicorn import-style execution: `uvicorn github_summary.web:main`
+    app = build_web_app()
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False, workers=1)
