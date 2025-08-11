@@ -25,7 +25,6 @@ dependencies = [
 
 [project.scripts]
 github-summary = "github_summary.main:main"
-github-summary-serve = "github_summary.web:main"
 
 [tool.setuptools]
 packages = ["github_summary"]
