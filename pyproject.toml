@@ -15,12 +15,12 @@ dependencies = [
     "openai",
     "ipdb",
     "feedgen",
-    "schedule",
     "markdown-it-py",
     "tenacity",
     "tzlocal>=5.3.1",
     "fastapi",
     "uvicorn[standard]",
+    "croniter",
 ]
 
 [project.scripts]
