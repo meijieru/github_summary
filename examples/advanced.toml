@@ -1,0 +1,78 @@
+# Advanced Configuration Example
+# ===============================
+
+[github]
+token = "your_github_token_here"
+
+[llm]
+api_key = "your_openai_api_key"
+base_url = "https://api.openai.com/v1"  # Optional: custom endpoint
+model_name = "gpt-4"
+language = "English"
+retries = 3
+retry_delay = 1
+
+# Global filters applied to all repositories
+[filters.commits]
+exclude_commit_messages_regex = "^(docs|test|build|chore|ci|style):"
+[filters.pull_requests]
+exclude_pull_request_titles_regex = "^(docs|test|build|chore|ci):"
+since_filter_type = "updated"
+[filters.issues]
+exclude_issue_titles_regex = "^(docs|test):"
+
+# RSS feed generation
+[rss]
+title = "My GitHub Activity Summary"
+link = "https://my-domain.com/github-summary.xml"
+description = "Automated summaries of GitHub repository activity"
+filename = "github-summary.xml"
+
+# Global scheduling (applies to repositories without their own schedule)
+[schedule]
+cron = "0 7 * * 1-5"            # Weekdays at 7 AM
+timezone = "America/New_York"
+
+# Repository configurations
+[[repositories]]
+name = "company/critical-service"
+include_commits = true
+include_pull_requests = true
+include_issues = true
+include_discussions = false
+# Override global schedule for critical repos
+[repositories.schedule]
+cron = "0 */6 * * *"            # Every 6 hours
+timezone = "UTC"
+# Override global filters
+[repositories.filters.commits]
+exclude_commit_messages_regex = "^(test|ci):"
+
+[[repositories]]
+name = "company/frontend-app"
+# Custom filters for this repo
+[repositories.filters.pull_requests]
+labels = ["ready-for-review", "bug", "feature"]
+state = "closed"
+[repositories.filters.issues]
+assignee = "team-lead"
+milestone = "v2.0"
+
+[[repositories]]
+name = "company/documentation"
+include_commits = false         # Skip commits for docs repo
+include_discussions = true      # But include discussions
+# Weekly summary on Fridays
+[repositories.schedule]
+cron = "0 16 * * 5"             # Friday at 4 PM
+
+[[repositories]]
+name = "personal/side-project"
+# Uses global schedule (weekdays at 7 AM EST)
+
+# Configuration options:
+output_dir = "reports"
+log_level = "INFO"
+since_last_run = true
+fallback_lookback_days = 7
+timezone = "America/New_York"

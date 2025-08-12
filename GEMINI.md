@@ -1,31 +1,34 @@
 # GitHub Repository Summarizer
 
-This is a command-line tool that fetches and summarizes activity from GitHub repositories. It can retrieve commits, issues, pull requests, and discussions, and then optionally use a Large Language Model (LLM) to generate a concise summary of the repository's recent developments.
+> **Note:** This file serves as a context reference for AI development assistants. We use AI assistants internally for development assistance, and this file helps better understand our project context, coding style, and development principles.
 
-## Key Features 🚀
+## Project Overview
 
-- **Comprehensive Data Fetching:** Gathers detailed repository data, including commits, issues, pull requests, and discussions.
-- **Advanced Filtering:** Allows for precise data selection using filters for time ranges, authors, titles, regular expressions, and more.
-- **AI-Powered Summaries:** Integrates with LLMs to create intelligent and context-aware summaries of repository activity.
-- **Efficient API Usage:** Primarily uses GitHub's GraphQL API for fast and efficient data retrieval.
-- **Configurable System Prompt:** Customize the LLM's system prompt for tailored summaries.
-- **RSS Feed:** Can generate an RSS feed.
-- **Scheduled Runs:** Supports scheduling the summarization process to run automatically.
+A CLI tool that fetches GitHub repository activity and generates AI-powered summaries using GraphQL API and LLM integration. Features include RSS feed generation, web interface, scheduling, and advanced filtering capabilities.
 
-## Development Principles 🛠️
+This section provides essential context for AI development assistants:
 
-- **GraphQL-First API Usage:** We prioritize the [GitHub GraphQL API](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql) for its efficiency. It allows us to fetch precisely the data needed in a single request, reducing both over-fetching and the number of API calls.
-- **Time Zone Management:**
-  - **Standard:** Timestamps from the GitHub API are parsed from the ISO 8601 format.
-  - **Internal:** All internal processing, logic, and storage must use UTC.
-  - **Display:** All timestamps must be converted to the user's local time zone before being displayed in the UI.
-- **Code Style:** We strictly adhere to the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) to ensure a readable, consistent, and maintainable codebase.
-- **Code Quality and Documentation:** We maintain a high-quality codebase and clear documentation through the following standards:
-  - **In-Code:** All modules, classes, and functions must have comprehensive docstrings and complete type annotations.
-  - **Usage Examples:** The `README.md` file must contain practical examples demonstrating how to use the program.
-  - **Configuration:** A `config.toml.example` file must be provided to show all available configuration options.
+**Core Principles:**
 
-## Project Management 📦
+- **GraphQL-First:** Prioritize GitHub GraphQL API for efficiency
+- **Time Zone Management:** UTC for internal processing, local time for display
+- **Code Style:** Strict adherence to Google Python Style Guide
+- **Documentation:** Complete docstrings and type annotations for all code
 
-This project uses **uv** for fast and reliable dependency and virtual environment management, and **pyrefly** for type checking.
+**Development Requirements:**
 
+- Update relevant documentation when making changes
+- Maintain consistency with existing codebase patterns
+- Use UTC for all internal timestamp processing
+- Prefer GraphQL API over REST when possible
+
+## Related Documentation
+
+For comprehensive project information, refer to:
+
+- **[README.md](./README.md)** - Main project documentation and quick start
+- **[docs/SETUP.md](docs/SETUP.md)** - Installation and setup instructions
+- **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** - Configuration options and examples
+- **[docs/API.md](docs/API.md)** - API documentation and integration details
+- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Codebase structure overview
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes

@@ -1,0 +1,20 @@
+[github]
+token = "YOUR_GITHUB_TOKEN"
+
+[[repositories]]
+name = "owner/repository-name"
+# Optional: Global schedule for all repositories
+# [schedule]
+# cron = "0 6 * * *"        # Daily at 6 AM
+# timezone = "UTC"          # Optional timezone
+
+[llm]
+api_key = "YOUR_LLM_API_KEY"
+model_name = "gpt-4"
+language = "English"
+
+# Optional: Global filters that apply to all repositories
+# [filters.commits]
+# exclude_commit_messages_regex = "^(docs|test|build|chore|ci)"
+# [filters.pull_requests]
+# exclude_pull_request_titles_regex = "^(docs|test|build|chore|ci)"

@@ -1,0 +1,67 @@
+# Example configuration with cron-based scheduling
+
+[github]
+token = "your_github_token_here"
+
+# Global schedule using cron syntax
+[schedule]
+cron = "0 6 * * *"              # Every day at 6:00 AM
+timezone = "UTC"                # Optional timezone specification
+
+# LLM Configuration
+[llm]
+api_key = "your_openai_api_key"
+model_name = "gpt-4"
+language = "English"
+
+# Repository configurations with different cron schedules
+[[repositories]]
+name = "owner/critical-repo"
+# Multiple times daily - every 4 hours during business hours
+[repositories.schedule]
+cron = "0 8,12,16 * * *"        # 8 AM, 12 PM, 4 PM daily
+timezone = "America/New_York"
+
+[[repositories]]
+name = "owner/weekly-reports"
+# Weekly summary every Monday morning
+[repositories.schedule]
+cron = "0 9 * * 1"              # Every Monday at 9 AM
+timezone = "Europe/London"
+
+[[repositories]]
+name = "owner/end-of-week"
+# Weekly summary every Friday evening
+[repositories.schedule]
+cron = "0 17 * * 5"             # Every Friday at 5 PM
+
+[[repositories]]
+name = "owner/business-hours"
+# Hourly during business hours, weekdays only
+[repositories.schedule]
+cron = "0 9-17 * * 1-5"         # Every hour from 9 AM to 5 PM, Monday to Friday
+
+[[repositories]]
+name = "owner/monthly-check"
+# First day of every month
+[repositories.schedule]
+cron = "0 8 1 * *"              # 8 AM on the 1st of every month
+
+[[repositories]]
+name = "owner/standard-repo"
+# This repo uses the global schedule (daily at 6 AM UTC)
+
+# Filters can still be applied
+[filters.commits]
+exclude_commit_messages_regex = "^(fix|docs|chore|style):"
+
+# Common cron expressions reference:
+# "0 6 * * *"     - Daily at 6 AM
+# "0 6,18 * * *"  - Daily at 6 AM and 6 PM  
+# "0 9 * * 1"     - Every Monday at 9 AM
+# "0 17 * * 5"    - Every Friday at 5 PM
+# "0 9-17 * * *"  - Every hour from 9 AM to 5 PM daily
+# "0 9-17 * * 1-5" - Every hour from 9 AM to 5 PM, weekdays only
+# "*/15 * * * *"  - Every 15 minutes
+# "0 0 1 * *"     - First day of every month at midnight
+# "0 0 * * 0"     - Every Sunday at midnight

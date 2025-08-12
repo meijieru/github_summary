@@ -1,0 +1,36 @@
+# Simple Getting Started Example
+# ==============================
+
+[github]
+token = "your_github_token_here"
+
+[llm]
+api_key = "your_openai_api_key"
+model_name = "gpt-4"
+
+# Basic repository configuration
+[[repositories]]
+name = "owner/your-repository"
+
+# ==============================
+# Next Steps
+# ==============================
+#
+# 1. Add scheduling (optional):
+#    [schedule]
+#    cron = "0 9 * * 1"    # Every Monday at 9 AM
+#    timezone = "UTC"
+#
+# 2. Add filters (optional):
+#    [filters.commits]
+#    exclude_commit_messages_regex = "^(docs|test|chore):"
+#
+# 3. Add per-repository schedules:
+#    [repositories.schedule]
+#    cron = "0 6 * * *"    # Daily at 6 AM
+#
+# 4. Multiple repositories:
+#    [[repositories]]
+#    name = "owner/another-repo"
+#
+# See other example files for advanced configurations.
