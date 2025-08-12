@@ -141,6 +141,7 @@ def run_report(
     save: bool,
     save_markdown: bool,
     skip_summary: bool,
+    repo_name: str | None = None,
 ):
     """Runs the GitHub activity report, fetching data and optionally generating a summary.
 
@@ -149,6 +150,7 @@ def run_report(
         save: If True, saves the report to a JSON file.
         save_markdown: If True, saves the summary to a Markdown file.
         skip_summary: If True, skips generating and printing the LLM-based summary.
+        repo_name: If provided, only runs the report for this specific repository.
     """
     logger.info("Starting report generation.")
     config, service, summarizer = _get_services(config_path)
@@ -170,7 +172,15 @@ def run_report(
     if config.rss and config.rss.enabled:
         feed = create_rss_feed(config.rss)
 
-    for repo in config.repositories:
+    # Filter repositories if a specific repo is requested
+    repositories = config.repositories
+    if repo_name:
+        repositories = [repo for repo in config.repositories if repo.name == repo_name]
+        if not repositories:
+            logger.error("Repository '%s' not found in configuration.", repo_name)
+            raise typer.Exit(1)
+
+    for repo in repositories:
         logger.info("Generating full report for %s", repo.name)
         logger.info("Processing repository: %s", repo.name)
         commits, pull_requests, issues, discussions = _get_repo_data(repo, service, config, since)

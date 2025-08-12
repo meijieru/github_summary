@@ -23,9 +23,10 @@ def summarize(
     save: bool = typer.Option(False, "--save", help="Save the report to a JSON file."),
     save_markdown: bool = typer.Option(False, "--save-markdown", help="Save the summary to a Markdown file."),
     skip_summary: bool = typer.Option(False, "--skip-summary", help="Skip printing the summary."),
+    repo: str = typer.Option(None, "--repo", help="Run only for a specific repository (format: owner/repo)."),
 ) -> None:
     """Summarize the recent progress in GitHub repositories."""
-    run_report(config_path, save, save_markdown, skip_summary)
+    run_report(config_path, save, save_markdown, skip_summary, repo)
 
 
 @app.command("schedule-run")

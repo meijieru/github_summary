@@ -75,6 +75,7 @@ class RepoConfig(BaseModel):
     include_pull_requests: bool = True
     include_issues: bool = True
     include_discussions: bool = True
+    schedule: ScheduleConfig | None = None
 
 
 # Main configuration model

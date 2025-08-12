@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 from typing import Optional
@@ -6,6 +7,8 @@ import schedule
 
 from github_summary.actions import run_report
 from github_summary.config import load_config
+
+logger = logging.getLogger(__name__)
 
 
 class ReportScheduler:
@@ -22,11 +25,23 @@ class ReportScheduler:
         cfg = load_config(self.config_path)
         self._scheduler.clear()
         self._jobs_registered = False
+
+        # Register global schedule if enabled
         if cfg.schedule and cfg.schedule.enabled:
             for run_time in cfg.schedule.run_at:
                 # Do not save artifacts; do not skip summary
                 self._scheduler.every().day.at(run_time).do(run_report, self.config_path, False, False, False)
                 self._jobs_registered = True
+
+        # Register per-repository schedules
+        for repo in cfg.repositories:
+            if repo.schedule and repo.schedule.enabled:
+                for run_time in repo.schedule.run_at:
+                    # Do not save artifacts; do not skip summary; run for specific repo
+                    self._scheduler.every().day.at(run_time).do(
+                        run_report, self.config_path, False, False, False, repo.name
+                    )
+                    self._jobs_registered = True
 
     def _loop(self) -> None:
         while not self._stop_evt.is_set():
@@ -51,6 +66,9 @@ class ReportScheduler:
     def run_forever(self) -> None:
         """Blocking run for CLI usage."""
         self._register_jobs()
+        if not self._jobs_registered:
+            logger.warning("No schedules configured. Exiting.")
+            return
         while True:
             self._scheduler.run_pending()
             time.sleep(60)
