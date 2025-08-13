@@ -14,7 +14,8 @@ from github_summary.scheduler import ReportScheduler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events for the FastAPI app."""
-    config_path = os.getenv("GHSUM_CONFIG_PATH", "config/config.toml")
+    # Get config_path from app state, set by build_web_app
+    config_path = getattr(app.state, "config_path", os.getenv("GHSUM_CONFIG_PATH", "config/config.toml"))
     cfg = load_config(config_path)
     os.makedirs(cfg.output_dir, exist_ok=True)
 
@@ -41,6 +42,8 @@ def build_web_app(config_path: Optional[str] = None) -> FastAPI:
         config_path = os.getenv("GHSUM_CONFIG_PATH", "config/config.toml")
 
     app = FastAPI(lifespan=lifespan)
+    # Store config_path in app state so lifespan can access it
+    app.state.config_path = config_path
 
     @app.get("/healthz")
     def healthz() -> JSONResponse:
@@ -52,6 +55,16 @@ def build_web_app(config_path: Optional[str] = None) -> FastAPI:
     app.mount("/", StaticFiles(directory=cfg.output_dir, html=False), name="static")
 
     return app
+
+
+def create_app() -> FastAPI:
+    """Factory function for uvicorn reload mode.
+
+    This function is called by uvicorn when using reload=True with factory=True.
+    It reads the config path from the GHSUM_CONFIG_PATH environment variable.
+    """
+    config_path = os.getenv("GHSUM_CONFIG_PATH", "config/config.toml")
+    return build_web_app(config_path)
 
 
 def main() -> None:

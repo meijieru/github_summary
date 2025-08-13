@@ -189,6 +189,16 @@ Concurrency settings are applied in this order (highest to lowest priority):
 3. Configuration file (`performance.max_concurrent_repos`)
 4. Default value (4)
 
+#### Configuration File Priority
+
+Configuration file path is determined in this order (highest to lowest priority):
+
+1. CLI argument (`--config path/to/config.toml`)
+2. Environment variable (`GHSUM_CONFIG_PATH`)
+3. Default path (`config/config.toml`)
+
+**Note**: For web service reload mode, the CLI argument is passed via `GHSUM_CONFIG_PATH` environment variable to the reloaded process.
+
 ### Async Architecture Benefits
 
 The async-first design provides several performance advantages:

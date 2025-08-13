@@ -9,7 +9,7 @@ A modern, async-first CLI tool that fetches GitHub repository activity and gener
    ```bash
    # Using uv (recommended)
    pip install uv && uv sync
-   
+
    # Or using pip
    pip install -e .
    ```
@@ -80,6 +80,12 @@ github-summary schedule-run
 
 # Web service (serves RSS + scheduling)
 github-summary web --port 8000
+
+# Web service with custom config
+github-summary web --config /path/to/config.toml --port 8000
+
+# Web service with auto-reload (development)
+github-summary web --reload --config custom.toml
 
 # List repository labels
 github-summary utils list-labels owner/repo

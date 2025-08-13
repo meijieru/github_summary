@@ -53,7 +53,7 @@ def web(
     if reload:
         # uvicorn reload requires import path + factory
         os.environ["GHSUM_CONFIG_PATH"] = config_path
-        uvicorn.run("github_summary.web:build_web_app", host=host, port=port, reload=True, factory=True)
+        uvicorn.run("github_summary.web:create_app", host=host, port=port, reload=True, factory=True)
     else:
         uvicorn.run(build_web_app(config_path), host=host, port=port, reload=False)
 
