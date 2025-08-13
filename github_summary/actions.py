@@ -50,6 +50,9 @@ def setup_logging(log_level: str) -> None:
         handlers=[console_handler, file_handler],
     )
 
+    # Mute httpx logging to avoid cluttering output
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 def create_summarizer(config: Config):
     """Create async summarizer if LLM config exists."""
