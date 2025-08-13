@@ -21,6 +21,7 @@ This section provides essential context for AI development assistants:
 - Maintain consistency with existing codebase patterns
 - Use UTC for all internal timestamp processing
 - Prefer GraphQL API over REST when possible
+- **Testing Framework:** Use pytest for all testing (no unittest.TestCase classes)
 
 ## Related Documentation
 
@@ -31,4 +32,5 @@ For comprehensive project information, refer to:
 - **[docs/CONFIGURATION.md](docs/CONFIGURATION.md)** - Configuration options and examples
 - **[docs/API.md](docs/API.md)** - API documentation and integration details
 - **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Codebase structure overview
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+- **[docs/testing_guide.md](docs/testing_guide.md)** - Testing guidelines and pytest usage
+

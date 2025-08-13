@@ -4,6 +4,7 @@ from github_summary.config import load_config
 from github_summary.models import Config
 
 
+@pytest.mark.unit
 def test_load_config_success(tmp_path):
     config_content = """
     [github]
@@ -31,11 +32,13 @@ def test_load_config_success(tmp_path):
     assert config.since_last_run is True
 
 
+@pytest.mark.unit
 def test_load_config_not_found():
     with pytest.raises(FileNotFoundError):
         load_config("non_existent_file.toml")
 
 
+@pytest.mark.unit
 def test_load_config_invalid(tmp_path):
     config_content = """
     # Missing 'name' in repository

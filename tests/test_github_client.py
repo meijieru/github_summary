@@ -20,9 +20,10 @@ def mock_requests():
         yield mock_get, mock_post
 
 
-def test_github_service_commits(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
+@pytest.fixture
+def sample_commit_response():
+    """Sample GitHub API response for commits"""
+    return {
         "data": {
             "repository": {
                 "defaultBranchRef": {
@@ -47,16 +48,34 @@ def test_github_service_commits(mock_requests):
         }
     }
 
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_commits=True)
+
+@pytest.fixture
+def github_service():
+    """Create a GitHub service instance for testing"""
+    return GitHubService(token="test_token")
+
+
+@pytest.fixture
+def sample_repo_config():
+    """Create a sample repository configuration"""
+    return RepoConfig(name="owner/repo", include_commits=True)
+
+
+@pytest.mark.unit
+def test_github_service_commits(mock_requests, sample_commit_response, github_service, sample_repo_config):
+    """Test fetching commits from GitHub API"""
+    _, mock_post = mock_requests
+    mock_post.return_value.json.return_value = sample_commit_response
+
     filters = FilterConfig()
 
-    commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
+    commits = github_service.get_commits(sample_repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
     assert len(commits) == 1
     assert commits[0].author == "test_author"
     assert commits[0].message == "feat: initial commit"
 
 
+@pytest.mark.unit
 def test_github_service_commits_exclude_regex(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -122,6 +141,7 @@ def test_github_service_commits_exclude_regex(mock_requests):
     assert commits[0].message == "feat: new feature"
 
 
+@pytest.mark.unit
 def test_github_service_commits_disabled():
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_commits=False)
@@ -130,6 +150,7 @@ def test_github_service_commits_disabled():
     assert len(commits) == 0
 
 
+@pytest.mark.unit
 def test_github_service_pull_requests(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -166,6 +187,7 @@ def test_github_service_pull_requests(mock_requests):
     assert pull_requests[0].body == "Test PR body"
 
 
+@pytest.mark.unit
 def test_github_service_pull_requests_exclude_regex(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -211,6 +233,7 @@ def test_github_service_pull_requests_exclude_regex(mock_requests):
     assert pull_requests[0].title == "feat: new feature"
 
 
+@pytest.mark.unit
 def test_github_service_pull_requests_disabled():
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_pull_requests=False)
@@ -219,6 +242,7 @@ def test_github_service_pull_requests_disabled():
     assert len(pull_requests) == 0
 
 
+@pytest.mark.unit
 def test_github_service_issues(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -249,6 +273,7 @@ def test_github_service_issues(mock_requests):
     assert issues[0].body == "Test Issue body"
 
 
+@pytest.mark.unit
 def test_github_service_issues_exclude_regex(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -288,6 +313,7 @@ def test_github_service_issues_exclude_regex(mock_requests):
     assert issues[0].title == "feat: new feature"
 
 
+@pytest.mark.unit
 def test_github_service_issues_filter_tag(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -319,6 +345,7 @@ def test_github_service_issues_filter_tag(mock_requests):
     assert issues[0].title == "Issue with bug tag"
 
 
+@pytest.mark.unit
 def test_github_service_pull_requests_filter_state(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -353,6 +380,7 @@ def test_github_service_pull_requests_filter_state(mock_requests):
     assert pull_requests[0].title == "Open PR"
 
 
+@pytest.mark.unit
 def test_github_service_pull_requests_filter_labels(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -388,6 +416,7 @@ def test_github_service_pull_requests_filter_labels(mock_requests):
     assert pull_requests[0].title == "PR with bug label"
 
 
+@pytest.mark.unit
 def test_github_service_issues_filter_assignee(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -419,6 +448,7 @@ def test_github_service_issues_filter_assignee(mock_requests):
     assert issues[0].title == "Issue assigned to user1"
 
 
+@pytest.mark.unit
 def test_github_service_issues_disabled():
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_issues=False)
@@ -427,6 +457,7 @@ def test_github_service_issues_disabled():
     assert len(issues) == 0
 
 
+@pytest.mark.unit
 def test_github_service_issues_filter_since_days(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -467,6 +498,7 @@ def test_github_service_issues_filter_since_days(mock_requests):
     assert issues[1].title == "Recent Issue"
 
 
+@pytest.mark.unit
 def test_github_service_discussions(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -501,6 +533,7 @@ def test_github_service_discussions(mock_requests):
     assert discussions[0].body == "Test Discussion body"
 
 
+@pytest.mark.unit
 def test_github_service_discussions_disabled():
     service = GitHubService(token="test_token")
     repo = RepoConfig(name="owner/repo", include_discussions=False)
@@ -509,6 +542,7 @@ def test_github_service_discussions_disabled():
     assert len(discussions) == 0
 
 
+@pytest.mark.unit
 def test_github_service_discussions_filter_since_days(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -548,6 +582,7 @@ def test_github_service_discussions_filter_since_days(mock_requests):
     assert discussions[0].title == "Recent Discussion"
 
 
+@pytest.mark.unit
 def test_github_service_discussions_filter_author(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {
@@ -587,6 +622,7 @@ def test_github_service_discussions_filter_author(mock_requests):
     assert discussions[0].title == "Discussion by Author1"
 
 
+@pytest.mark.unit
 def test_github_service_discussions_exclude_regex(mock_requests):
     _, mock_post = mock_requests
     mock_post.return_value.json.return_value = {

@@ -33,3 +33,14 @@ packages = ["github_summary"]
 line-length = 120
 indent-width = 4
 lint.extend-select = ["I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--tb=short",       # short traceback format
+    "--strict-markers", # strict marker checking
+]
+markers = [
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+]

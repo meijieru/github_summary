@@ -7,6 +7,7 @@ from github_summary.models import Config, GitHubConfig, RepoConfig, ScheduleConf
 from github_summary.scheduler import ReportScheduler
 
 
+@pytest.mark.unit
 def test_repo_config_with_cron_schedule():
     """Test that RepoConfig can have a cron-based schedule."""
     schedule_config = ScheduleConfig(cron="0 9 * * 1", timezone="UTC")
@@ -17,12 +18,14 @@ def test_repo_config_with_cron_schedule():
     assert repo_config.schedule.timezone == "UTC"
 
 
+@pytest.mark.unit
 def test_repo_config_without_schedule():
     """Test that RepoConfig works without a schedule (default None)."""
     repo_config = RepoConfig(name="owner/repo")
     assert repo_config.schedule is None
 
 
+@pytest.mark.unit
 def test_schedule_config_defaults():
     """Test ScheduleConfig default values."""
     schedule_config = ScheduleConfig()
@@ -30,40 +33,44 @@ def test_schedule_config_defaults():
     assert schedule_config.timezone is None
 
 
-def test_schedule_config_validation_valid_cron():
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "cron_expr,description",
+    [
+        ("0 9 * * *", "Daily at 9 AM"),
+        ("0 9,17 * * *", "Daily at 9 AM and 5 PM"),
+        ("0 9 * * 1", "Every Monday at 9 AM"),
+        ("0 9-17 * * 1-5", "Hourly during business hours"),
+        ("*/15 * * * *", "Every 15 minutes"),
+        ("0 0 1 * *", "First day of month"),
+    ],
+)
+def test_schedule_config_validation_valid_cron(cron_expr, description):
     """Test that valid cron expressions pass validation."""
-    valid_crons = [
-        "0 9 * * *",  # Daily at 9 AM
-        "0 9,17 * * *",  # Daily at 9 AM and 5 PM
-        "0 9 * * 1",  # Every Monday at 9 AM
-        "0 9-17 * * 1-5",  # Hourly during business hours
-        "*/15 * * * *",  # Every 15 minutes
-        "0 0 1 * *",  # First day of month
-    ]
-
-    for cron in valid_crons:
-        schedule_config = ScheduleConfig(cron=cron)
-        # Should not raise an exception
-        assert schedule_config.cron == cron
+    schedule_config = ScheduleConfig(cron=cron_expr)
+    # Should not raise an exception
+    assert schedule_config.cron == cron_expr
 
 
-def test_schedule_config_validation_invalid_cron():
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "invalid_cron,reason",
+    [
+        ("0 9 * *", "Too few fields"),
+        ("60 9 * * *", "Invalid minute (>59)"),
+        ("0 25 * * *", "Invalid hour (>23)"),
+        ("0 9 32 * *", "Invalid day (>31)"),
+        ("0 9 * 13 *", "Invalid month (>12)"),
+        ("0 9 * * 8", "Invalid weekday (>7)"),
+    ],
+)
+def test_schedule_config_validation_invalid_cron(invalid_cron, reason):
     """Test that invalid cron expressions raise validation errors."""
-    invalid_crons = [
-        "0 9 * *",  # Too few fields
-        "0 9 * * * *",  # Too many fields
-        "60 9 * * *",  # Invalid minute (>59)
-        "0 25 * * *",  # Invalid hour (>23)
-        "0 9 32 * *",  # Invalid day (>31)
-        "0 9 * 13 *",  # Invalid month (>12)
-        "0 9 * * 8",  # Invalid weekday (>7)
-    ]
-
-    for cron in invalid_crons:
-        with pytest.raises(ValueError):
-            ScheduleConfig(cron=cron)
+    with pytest.raises(ValueError):
+        ScheduleConfig(cron=invalid_cron)
 
 
+@pytest.mark.integration
 @patch("github_summary.scheduler.load_config")
 def test_scheduler_registers_cron_jobs(mock_load_config):
     """Test that the scheduler registers cron jobs correctly."""
@@ -84,6 +91,7 @@ def test_scheduler_registers_cron_jobs(mock_load_config):
     assert scheduler._jobs[0]["repo_name"] == "owner/repo1"
 
 
+@pytest.mark.integration
 @patch("github_summary.scheduler.load_config")
 def test_scheduler_registers_both_global_and_repo_schedules(mock_load_config):
     """Test that the scheduler registers both global and per-repo cron schedules."""
@@ -112,6 +120,7 @@ def test_scheduler_registers_both_global_and_repo_schedules(mock_load_config):
     assert "0 10 * * *" in cron_exprs  # Per-repo schedule
 
 
+@pytest.mark.integration
 @patch("github_summary.scheduler.load_config")
 def test_scheduler_with_timezone(mock_load_config):
     """Test scheduler handles timezone configuration."""
@@ -128,6 +137,7 @@ def test_scheduler_with_timezone(mock_load_config):
     assert scheduler._jobs[0]["timezone"] is not None
 
 
+@pytest.mark.integration
 @patch("github_summary.scheduler.load_config")
 def test_scheduler_handles_invalid_timezone(mock_load_config):
     """Test scheduler handles invalid timezone gracefully."""
@@ -144,6 +154,7 @@ def test_scheduler_handles_invalid_timezone(mock_load_config):
     assert scheduler._jobs[0]["timezone"] is None
 
 
+@pytest.mark.integration
 @patch("github_summary.scheduler.run_report")
 @patch("github_summary.scheduler.load_config")
 def test_scheduler_executes_jobs(mock_load_config, mock_run_report):
@@ -171,6 +182,7 @@ def test_scheduler_executes_jobs(mock_load_config, mock_run_report):
     mock_run_report.assert_called_once()
 
 
+@pytest.mark.integration
 @patch("github_summary.actions._get_services")
 @patch("github_summary.actions._get_repo_data")
 def test_run_report_with_specific_repo(mock_get_repo_data, mock_get_services):
@@ -197,6 +209,7 @@ def test_run_report_with_specific_repo(mock_get_repo_data, mock_get_services):
     assert call_args[0].name == "owner/repo1"
 
 
+@pytest.mark.integration
 @patch("github_summary.actions._get_services")
 def test_run_report_with_nonexistent_repo(mock_get_services):
     """Test that run_report raises an error for non-existent repository."""
@@ -213,6 +226,7 @@ def test_run_report_with_nonexistent_repo(mock_get_services):
         run_report("test_config.toml", False, False, True, "owner/nonexistent")
 
 
+@pytest.mark.unit
 def test_cron_field_validation_edge_cases():
     """Test edge cases in cron field validation."""
     # Test step values

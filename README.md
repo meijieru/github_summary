@@ -109,7 +109,10 @@ github-summary utils list-labels owner/repo
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Submit a pull request
+5. Run tests: `pytest` (see [Testing Guide](docs/testing_guide.md))
+6. Submit a pull request
+
+For development guidelines, see [GEMINI.md](GEMINI.md) and [Testing Guide](docs/testing_guide.md).
 
 ## 📄 License
 
