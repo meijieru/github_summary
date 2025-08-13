@@ -1,14 +1,17 @@
 # GitHub Repository Summarizer
 
-A CLI tool that fetches GitHub repository activity and generates AI-powered summaries.
+A modern, async-first CLI tool that fetches GitHub repository activity and generates AI-powered summaries using OpenAI and gidgethub.
 
 ## 🚀 Quick Start
 
 1. **Install dependencies:**
 
    ```bash
-   pip install uv
-   uv sync
+   # Using uv (recommended)
+   pip install uv && uv sync
+   
+   # Or using pip
+   pip install -e .
    ```
 
 2. **Configure:**
@@ -36,8 +39,13 @@ name = "owner/repo-name"
 
 [llm]
 api_key = "YOUR_LLM_API_KEY"
-model_name = "gpt-4"
+base_url = "https://api.openai.com/v1"  # Optional: custom OpenAI-compatible endpoint
+model_name = "gpt-4o-mini"
 language = "English"
+
+[performance]
+max_concurrent_repos = 4  # Maximum concurrent repository processing
+max_concurrent_llm = 3    # Maximum concurrent LLM requests
 ```
 
 ### Scheduling
@@ -79,12 +87,16 @@ github-summary utils list-labels owner/repo
 
 ## ✨ Features
 
-- **Multi-source data**: Commits, PRs, issues, discussions
-- **AI summaries**: LLM-powered intelligent summaries
-- **Flexible scheduling**: Cron-based scheduling with timezone support
-- **RSS feeds**: Generate RSS feeds for summaries
-- **Advanced filtering**: Regex patterns, author filters, label filters
-- **Web service**: Serve RSS feeds and schedule reports
+- **Async-first architecture**: Built with OpenAI and gidgethub for high performance
+- **Multi-source data**: Commits, PRs, issues, discussions via GitHub GraphQL API
+- **AI summaries**: OpenAI and compatible LLM integration with configurable concurrency
+- **Flexible scheduling**: AsyncIOScheduler with cron-based scheduling and timezone support
+- **RSS feeds**: Generate RSS feeds for summaries with markdown support
+- **Advanced filtering**: Regex patterns, author filters, label filters, date ranges
+- **Web service**: FastAPI-based service for RSS feeds and scheduled reports
+- **Robust error handling**: Automatic retries with exponential backoff, rate limiting, and comprehensive logging
+- **Per-repository tracking**: Individual last-run tracking and scheduling per repository
+- **Modern async I/O**: Built on httpx for efficient HTTP operations
 
 ## 📁 Project Structure
 
@@ -115,10 +127,17 @@ github-summary utils list-labels owner/repo
    ruff check . --fix    # Auto-fix linting issues
    pyrefly check         # Type checking
    pytest                # Run tests
+   pytest -m unit        # Run only unit tests (fast)
+   pytest -m integration # Run integration tests
    ```
 6. Submit a pull request
 
-For development guidelines, see [GEMINI.md](GEMINI.md) and [Testing Guide](docs/testing_guide.md).
+### Test Categories
+
+- **Unit tests** (`@pytest.mark.unit`): Fast tests without external dependencies
+- **Integration tests** (`@pytest.mark.integration`): Tests with mocked external services
+
+For development guidelines and detailed testing information, see [Testing Guide](docs/testing_guide.md).
 
 ## 📄 License
 

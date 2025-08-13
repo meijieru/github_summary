@@ -13,10 +13,10 @@ PROMPT_TEMPLATE = """{system_prompt}
 ```"""
 
 
-class LLMClient(Protocol):
-    """A protocol defining the interface for an LLM client."""
+class AsyncLLMClient(Protocol):
+    """A protocol defining the interface for an async LLM client."""
 
-    def generate_summary(self, prompt: str) -> str:
+    async def generate_summary(self, prompt: str) -> str:
         """Generates a summary for the given prompt."""
         ...
 
@@ -31,7 +31,7 @@ class Summarizer:
 
     def __init__(
         self,
-        llm_client: LLMClient,
+        llm_client: AsyncLLMClient,
         system_prompt: str,
         language: str | None = None,
         timezone: str | None = None,
@@ -39,7 +39,7 @@ class Summarizer:
         """Initializes the Summarizer.
 
         Args:
-            llm_client: An object that conforms to the LLMClient protocol.
+            llm_client: An object that conforms to the AsyncLLMClient protocol.
             system_prompt: The base system prompt for the LLM.
             language: The desired language for the summary (e.g., "en", "es").
             timezone: The timezone for displaying timestamps (e.g., "America/New_York").
@@ -91,7 +91,7 @@ class Summarizer:
                 return data
         return data
 
-    def summarize(self, info: dict, last_run_time: datetime | None) -> str:
+    async def summarize(self, info: dict, last_run_time: datetime | None) -> str:
         """Generates a summary of GitHub activity.
 
         This method builds a prompt from the provided information, sends it to the
@@ -104,6 +104,11 @@ class Summarizer:
         Returns:
             A string containing the generated summary.
         """
+        # If there's no actual data, return a standard message
+        if not any(info.get(key) for key in ["commits", "pull_requests", "issues", "discussions"]):
+            logger.info("No new data to summarize.")
+            return "No new updates."
+
         logger.info("Generating LLM prompt.")
 
         # Convert timestamps if a valid timezone is set
@@ -129,7 +134,7 @@ class Summarizer:
             info=json.dumps(processed_info, indent=2),
         )
         logger.debug("Generated prompt: %s", prompt)
-        summary = self.llm_client.generate_summary(prompt)
+        summary = await self.llm_client.generate_summary(prompt)
 
         # Clean up the summary output
         if summary.startswith("```markdown"):

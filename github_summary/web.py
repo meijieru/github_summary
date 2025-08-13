@@ -19,9 +19,9 @@ async def lifespan(app: FastAPI):
     os.makedirs(cfg.output_dir, exist_ok=True)
 
     scheduler = ReportScheduler(config_path)
-    scheduler.start()
+    await scheduler.start()
     yield
-    scheduler.stop()
+    await scheduler.stop()
 
 
 def build_web_app(config_path: Optional[str] = None) -> FastAPI:

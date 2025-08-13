@@ -63,10 +63,10 @@ def test_scheduler_registers_global_schedule(mock_load_config):
 
     scheduler = ReportScheduler("test_config.toml")
 
-    # Use BackgroundScheduler for testing
-    from apscheduler.schedulers.background import BackgroundScheduler
+    # Use AsyncIOScheduler for testing
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    test_scheduler = BackgroundScheduler()
+    test_scheduler = AsyncIOScheduler()
     scheduler._register_jobs(test_scheduler)
 
     jobs = test_scheduler.get_jobs()
@@ -91,9 +91,9 @@ def test_scheduler_registers_repo_specific_schedule(mock_load_config):
 
     scheduler = ReportScheduler("test_config.toml")
 
-    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    test_scheduler = BackgroundScheduler()
+    test_scheduler = AsyncIOScheduler()
     scheduler._register_jobs(test_scheduler)
 
     jobs = test_scheduler.get_jobs()
@@ -113,9 +113,9 @@ def test_scheduler_handles_no_schedules(mock_load_config):
 
     scheduler = ReportScheduler("test_config.toml")
 
-    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    test_scheduler = BackgroundScheduler()
+    test_scheduler = AsyncIOScheduler()
     scheduler._register_jobs(test_scheduler)
 
     jobs = test_scheduler.get_jobs()
@@ -134,9 +134,9 @@ def test_scheduler_with_timezone(mock_load_config, mock_run_report):
 
     scheduler = ReportScheduler("test_config.toml")
 
-    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-    test_scheduler = BackgroundScheduler()
+    test_scheduler = AsyncIOScheduler()
     scheduler._register_jobs(test_scheduler)
 
     jobs = test_scheduler.get_jobs()

@@ -158,6 +158,13 @@ class ScheduleConfig(BaseModel):
     timezone: str | None = None  # Optional timezone (e.g., "America/New_York", "UTC")
 
 
+class PerformanceConfig(BaseModel):
+    """Configuration for performance and concurrency settings."""
+
+    max_concurrent_repos: int = Field(4, description="Maximum number of repositories to process concurrently")
+    max_concurrent_llm: int = Field(3, description="Maximum number of concurrent LLM API requests")
+
+
 class Config(BaseModel):
     """Main application configuration, including GitHub settings, global filters, repositories, and LLM settings."""
 
@@ -167,6 +174,7 @@ class Config(BaseModel):
     llm: LLMConfig | None = None
     rss: RssConfig | None = None
     schedule: ScheduleConfig | None = None
+    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     output_dir: str = "output"
     log_level: str = "INFO"
     since_last_run: bool = True

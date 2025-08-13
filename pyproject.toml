@@ -8,9 +8,9 @@ dependencies = [
     "pydantic",
     "typer",
     "rich",
-    "python-dotenv",
     "httpx",
     "pytest",
+    "pytest-asyncio",
     "toml",
     "openai",
     "feedgen",
@@ -20,6 +20,8 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "apscheduler",
+    "gidgethub>=5.4.0",
+    "asyncer>=0.0.8",
 ]
 
 [project.scripts]
@@ -35,6 +37,7 @@ lint.extend-select = ["I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
 addopts = [
     "--tb=short",       # short traceback format
     "--strict-markers", # strict marker checking
@@ -42,6 +45,7 @@ addopts = [
 markers = [
     "unit: marks tests as unit tests",
     "integration: marks tests as integration tests",
+    "asyncio: marks tests as async tests",
 ]
 
 [dependency-groups]

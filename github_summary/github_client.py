@@ -1,11 +1,13 @@
+"""GitHub service using gidgethub for HTTP handling with domain-specific business logic"""
+
 import logging
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, MutableMapping
+from typing import Any
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential
+from gidgethub.httpx import GitHubAPI
 
 from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, RepoConfig
 from github_summary.queries import (
@@ -19,118 +21,45 @@ from github_summary.queries import (
 logger = logging.getLogger(__name__)
 
 
-def _conditional_retry(enable_retry: bool):
-    """Decorator factory that conditionally applies retry logic."""
-    if enable_retry:
-        return retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    else:
-        # No-op decorator for tests
-        return lambda func: func
-
-
-class GraphQLClient:
-    def __init__(self, token: str, enable_retry: bool = True):
-        """Initializes the GraphQLClient with a GitHub personal access token.
-
-        Args:
-            token: The GitHub personal access token.
-            enable_retry: Whether to enable retry logic (disable for tests).
-        """
-        self.url = "https://api.github.com/graphql"
-        self.headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github.v3+json",
-        }
-        self.client = httpx.Client(timeout=30.0)
-        self.enable_retry = enable_retry
-
-        # Apply retry decorator conditionally
-        self._execute_request = _conditional_retry(enable_retry)(self._execute_request)
-
-    def _execute_request(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Execute the actual HTTP request."""
-        response = self.client.post(self.url, json={"query": query, "variables": variables}, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
-
-    def _execute(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Executes a GraphQL query.
-
-        Args:
-            query: The GraphQL query string.
-            variables: Optional. A dictionary of variables for the query.
-
-        Returns:
-            The JSON response from the GraphQL API.
-
-        Raises:
-            httpx.HTTPError: If the API request fails.
-        """
-        logger.debug("Executing GraphQL query:\nQuery: %s\nVariables: %s", query, variables)
-
-        result = self._execute_request(query, variables)
-        logger.debug("GraphQL query response: %s", result)
-        return result
-
-    def _paginate(
-        self,
-        query: str,
-        variables: dict[str, Any],
-        data_extractor: Callable[[dict[str, Any]], dict[str, Any]],
-        max_pages: int = 5,
-    ) -> list[dict[str, Any]]:
-        """Paginates through GraphQL query results.
-
-        Args:
-            query: The GraphQL query string.
-            variables: A dictionary of variables for the query, including pagination cursors.
-            data_extractor: A callable that extracts the relevant data (nodes and pageInfo) from the GraphQL response.
-            max_pages: Maximum number of pages to fetch. Defaults to 10.
-
-        Returns:
-            A list of all nodes retrieved through pagination.
-        """
-        all_nodes = []
-        has_next_page = True
-        cursor = None
-        # Create a new dict to avoid mutating the input
-        variables = dict(variables)
-
-        i = 0
-        while has_next_page and i < max_pages:
-            variables.update({"cursor": cursor})
-            data = self._execute(query, variables)
-            page_data = data_extractor(data)
-            all_nodes.extend(page_data["nodes"])
-            has_next_page = page_data["pageInfo"]["hasNextPage"]
-            cursor = page_data["pageInfo"]["endCursor"]
-            i += 1
-
-        if has_next_page and i >= max_pages:
-            logger.warning("Reached maximum page limit (%d). Some data may be missing.", max_pages)
-        return all_nodes
-
-
 class GitHubService:
-    def __init__(self, token: str, enable_retry: bool = True):
-        """Initializes the GitHubService with a personal access token.
+    def __init__(self, token: str, user_agent: str = "github-summary/1.0"):
+        """Initialize the enhanced GitHub service.
 
         Args:
-            token: The GitHub personal access token.
-            enable_retry: Whether to enable retry logic (disable for tests).
+            token: GitHub personal access token
+            user_agent: User agent string for requests
         """
-        self.client = GraphQLClient(token, enable_retry=enable_retry)
+        self.token = token
+        self.user_agent = user_agent
+        self.session: httpx.AsyncClient | None = None
+        self.gh_client: GitHubAPI | None = None
 
-    def get_commits(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Commit]:
-        """Fetches commits for a given repository, applying specified filters.
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.session = httpx.AsyncClient(timeout=30.0)
+        self.gh_client = GitHubAPI(client=self.session, requester=self.user_agent, oauth_token=self.token)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        if self.session:
+            await self.session.aclose()
+
+    @property
+    def rate_limit(self):
+        """Access gidgethub's rate limit information."""
+        return self.gh_client.rate_limit if self.gh_client else None
+
+    async def get_commits(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Commit]:
+        """Fetch commits with our exact same API and business logic.
 
         Args:
-            repo: The repository configuration.
-            filters: The filter configuration to apply.
-            since: The datetime from which to fetch commits.
+            repo: Repository configuration
+            filters: Filter configuration
+            since: Datetime to fetch commits since
 
         Returns:
-            A list of Commit objects.
+            List of Commit objects
         """
         if not repo.include_commits:
             return []
@@ -138,12 +67,14 @@ class GitHubService:
         owner, repo_name = repo.name.split("/")
         variables: dict[str, Any] = {"owner": owner, "repo": repo_name}
 
-        commits_data = self.client._paginate(
+        # Use gidgethub for HTTP (automatic rate limiting + caching + retries)
+        commits_data = await self._paginate_graphql(
             GET_COMMITS_QUERY,
             variables,
-            lambda data: data["data"]["repository"]["defaultBranchRef"]["target"]["history"],
+            lambda data: data["repository"]["defaultBranchRef"]["target"]["history"],
         )
 
+        # Keep our exact same filtering and model conversion logic
         filtered_commits = []
         for item in commits_data:
             commit_date = datetime.fromisoformat(item["author"]["date"]).astimezone(UTC)
@@ -167,17 +98,8 @@ class GitHubService:
             )
         return filtered_commits
 
-    def get_pull_requests(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[PullRequest]:
-        """Fetches pull requests for a given repository, applying specified filters.
-
-        Args:
-            repo: The repository configuration.
-            filters: The filter configuration to apply.
-            since: The datetime from which to fetch pull requests.
-
-        Returns:
-            A list of PullRequest objects.
-        """
+    async def get_pull_requests(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[PullRequest]:
+        """Fetch pull requests with our exact same API and business logic."""
         if not repo.include_pull_requests:
             return []
 
@@ -189,10 +111,10 @@ class GitHubService:
             if filters.pull_requests.labels:
                 variables["labels"] = filters.pull_requests.labels
 
-        pull_requests_data = self.client._paginate(
+        pull_requests_data = await self._paginate_graphql(
             GET_PULL_REQUESTS_QUERY,
             variables,
-            lambda data: data["data"]["repository"]["pullRequests"],
+            lambda data: data["repository"]["pullRequests"],
         )
 
         filtered_pull_requests = []
@@ -220,6 +142,7 @@ class GitHubService:
                 if filters.pull_requests.exclude_pull_request_titles_regex:
                     if re.search(filters.pull_requests.exclude_pull_request_titles_regex, item["title"]):
                         continue
+
             pr_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
             filtered_pull_requests.append(
                 PullRequest(
@@ -237,17 +160,8 @@ class GitHubService:
             )
         return filtered_pull_requests
 
-    def get_issues(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Issue]:
-        """Fetches issues for a given repository, applying specified filters.
-
-        Args:
-            repo: The repository configuration.
-            filters: The filter configuration to apply.
-            since: The datetime from which to fetch issues.
-
-        Returns:
-            A list of Issue objects.
-        """
+    async def get_issues(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Issue]:
+        """Fetch issues with our exact same API and business logic."""
         if not repo.include_issues:
             return []
 
@@ -261,10 +175,10 @@ class GitHubService:
         search_query = " ".join(query_parts)
         variables: dict[str, Any] = {"searchQuery": search_query}
 
-        issues_data = self.client._paginate(
+        issues_data = await self._paginate_graphql(
             GET_ISSUES_QUERY,
             variables,
-            lambda data: data["data"]["search"],
+            lambda data: data["search"],
         )
 
         filtered_issues = []
@@ -292,6 +206,7 @@ class GitHubService:
                 if filters.issues.exclude_issue_titles_regex:
                     if re.search(filters.issues.exclude_issue_titles_regex, item["title"]):
                         continue
+
             filtered_issues.append(
                 Issue(
                     number=item["number"],
@@ -306,27 +221,18 @@ class GitHubService:
             )
         return filtered_issues
 
-    def get_discussions(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Discussion]:
-        """Fetches discussions for a given repository, applying specified filters.
-
-        Args:
-            repo: The repository configuration.
-            filters: The filter configuration to apply.
-            since: The datetime from which to fetch discussions.
-
-        Returns:
-            A list of Discussion objects.
-        """
+    async def get_discussions(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Discussion]:
+        """Fetch discussions with our exact same API and business logic."""
         if not repo.include_discussions:
             return []
 
         owner, repo_name = repo.name.split("/")
         variables: dict[str, Any] = {"owner": owner, "repo": repo_name}
 
-        discussions_data = self.client._paginate(
+        discussions_data = await self._paginate_graphql(
             GET_DISCUSSIONS_QUERY,
             variables,
-            lambda data: data["data"]["repository"]["discussions"],
+            lambda data: data["repository"]["discussions"],
         )
 
         filtered_discussions = []
@@ -340,6 +246,7 @@ class GitHubService:
                 filters.discussions.exclude_discussion_titles_regex, item["title"]
             ):
                 continue
+
             discussion_labels = [label["name"] for label in item.get("labels", {}).get("nodes", [])]
             filtered_discussions.append(
                 Discussion(
@@ -354,20 +261,71 @@ class GitHubService:
             )
         return filtered_discussions
 
-    def get_all_labels(self, owner: str, repo_name: str) -> list[str]:
-        """Fetches all labels for a given repository.
-
-        Args:
-            owner: The owner of the repository.
-            repo_name: The name of the repository.
-
-        Returns:
-            A list of label names.
-        """
+    async def get_all_labels(self, owner: str, repo_name: str) -> list[str]:
+        """Fetch all repository labels."""
         variables: dict[str, Any] = {"owner": owner, "name": repo_name}
-        labels_data = self.client._paginate(
+        labels_data = await self._paginate_graphql(
             GET_ALL_LABELS_QUERY,
             variables,
-            lambda data: data["data"]["repository"]["labels"],
+            lambda data: data["repository"]["labels"],
         )
         return [label["name"] for label in labels_data]
+
+    async def _paginate_graphql(
+        self,
+        query: str,
+        variables: dict[str, Any],
+        data_extractor: Callable[[dict[str, Any]], dict[str, Any]],
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        """
+        Our same pagination logic, but using gidgethub for HTTP requests.
+
+        Args:
+            query: GraphQL query string
+            variables: Query variables
+            data_extractor: Function to extract data from GraphQL response
+            max_pages: Maximum pages to fetch
+
+        Returns:
+            List of all nodes from paginated results
+        """
+        all_nodes = []
+        has_next_page = True
+        cursor = None
+        variables = dict(variables)
+
+        i = 0
+        while has_next_page and i < max_pages:
+            variables.update({"cursor": cursor})
+
+            logger.debug("Making GraphQL request (page %d): %s", i + 1, query[:100] + "...")
+
+            # Use gidgethub for the request (gets automatic rate limiting, retries, caching)
+            try:
+                assert self.gh_client is not None, "GitHub client not initialized"
+                result = await self.gh_client.graphql(query, **variables)
+            except Exception as e:
+                logger.error("GraphQL request failed: %s", e)
+                raise
+
+            # Log rate limit info if available
+            if self.rate_limit:
+                logger.debug(
+                    "Rate limit: %d/%d remaining, resets at %s",
+                    self.rate_limit.remaining,
+                    self.rate_limit.limit,
+                    self.rate_limit.reset_datetime,
+                )
+
+            page_data = data_extractor(result)
+            all_nodes.extend(page_data["nodes"])
+            has_next_page = page_data["pageInfo"]["hasNextPage"]
+            cursor = page_data["pageInfo"]["endCursor"]
+            i += 1
+
+        if has_next_page and i >= max_pages:
+            logger.warning("Reached maximum page limit (%d). Some data may be missing.", max_pages)
+
+        logger.info("Fetched %d total items across %d pages", len(all_nodes), i)
+        return all_nodes

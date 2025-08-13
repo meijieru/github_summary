@@ -12,6 +12,11 @@ language = "English"
 retries = 3
 retry_delay = 1
 
+# Performance and concurrency settings
+[performance]
+max_concurrent_repos = 6  # Process up to 6 repositories simultaneously
+max_concurrent_llm = 4    # Allow up to 4 concurrent LLM API requests
+
 # Global filters applied to all repositories
 [filters.commits]
 exclude_commit_messages_regex = "^(docs|test|build|chore|ci|style):"

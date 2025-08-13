@@ -4,10 +4,14 @@
 
 ### Prerequisites
 
-- Python 3.11+
-- Git
-- GitHub Personal Access Token
-- LLM API Key (OpenAI, OpenRouter, etc.)
+### System Requirements
+
+The async-first architecture has minimal system requirements:
+
+- **Memory**: ~50MB base + ~10MB per concurrent repository
+- **CPU**: Async I/O is CPU-efficient, works well on modest hardware
+- **Network**: Good network connectivity for GitHub and LLM APIs
+- **Python**: 3.11+ required for modern async features
 
 ### Step 1: Clone Repository
 
@@ -19,13 +23,23 @@ cd github_summary || exit
 ### Step 2: Install Dependencies
 
 ```bash
-# Using uv (recommended)
-pip install uv
+# Using uv (recommended for fast dependency management)
 uv sync
 
 # Or using pip
 pip install -e .
 ```
+
+### Dependencies Overview
+
+Key dependencies for the async architecture:
+
+- **`gidgethub`**: Production-ready GitHub API client with automatic rate limiting
+- **`openai`**: Official AsyncOpenAI client for LLM integration
+- **`apscheduler`**: AsyncIOScheduler for cron-based scheduling
+- **`asyncio`**: Native Python async runtime (Python 3.11+)
+- **`pydantic`**: Type-safe configuration and data validation
+- **`fastapi`**: Async web framework for the web service
 
 ### Step 3: Configuration
 
@@ -46,6 +60,7 @@ name = "owner/repository-name"
 base_url = "https://api.openai.com/v1"  # or OpenRouter, etc.
 api_key = "your_api_key_here"
 model_name = "gpt-4"
+max_concurrent = 3  # Configurable concurrent LLM requests
 language = "English"
 ```
 

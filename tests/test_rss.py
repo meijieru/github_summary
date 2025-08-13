@@ -1,7 +1,10 @@
+import pytest
+
 from github_summary.models import RssConfig
 from github_summary.rss import RSSFeedManager, add_entry_to_feed
 
 
+@pytest.mark.unit
 def test_rss_context_manager(tmp_path):
     """Test RSS context manager"""
     rss_config = RssConfig(title="Context Test", filename="context_test.xml")
@@ -20,6 +23,7 @@ def test_rss_context_manager(tmp_path):
         assert "Summary for owner/repo" in content
 
 
+@pytest.mark.unit
 def test_create_rss_feed(tmp_path):
     """Test RSS feed creation via RSSFeedManager"""
     rss_config = RssConfig(
@@ -35,6 +39,7 @@ def test_create_rss_feed(tmp_path):
         assert feed.description() == "Test feed description"
 
 
+@pytest.mark.unit
 def test_add_entry_to_feed(tmp_path):
     """Test adding entries to RSS feed via RSSFeedManager"""
     rss_config = RssConfig()
@@ -47,6 +52,7 @@ def test_add_entry_to_feed(tmp_path):
         assert entry.description() == "Test summary"
 
 
+@pytest.mark.unit
 def test_add_entry_to_feed_with_markdown(tmp_path):
     """Test adding markdown entries to RSS feed via RSSFeedManager"""
     rss_config = RssConfig()
@@ -67,6 +73,7 @@ def test_add_entry_to_feed_with_markdown(tmp_path):
         assert "<li>Item 1</li>" in content
 
 
+@pytest.mark.unit
 def test_save_rss_feed(tmp_path):
     """Test RSS feed saving via RSSFeedManager"""
     rss_config = RssConfig(title="Save Test", filename="test.xml")

@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,9 +12,9 @@ from github_summary.models import (
 
 
 @pytest.fixture
-def github_service():
+async def github_service():
     """Create GitHub service with retry disabled for tests."""
-    return GitHubService(token="test_token", enable_retry=False)
+    return GitHubService(token="test_token")
 
 
 @pytest.fixture
@@ -52,92 +52,125 @@ def sample_repo_config():
     return RepoConfig(name="owner/repo", include_commits=True)
 
 
-@pytest.mark.unit
-def test_github_service_commits(sample_commit_response, github_service, sample_repo_config):
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_github_service_commits(sample_commit_response, github_service, sample_repo_config):
     """Test fetching commits from GitHub API"""
-    with patch("httpx.Client.post") as mock_post:
-        mock_post.return_value.json.return_value = sample_commit_response
-        mock_post.return_value.raise_for_status.return_value = None
+    with patch("gidgethub.httpx.GitHubAPI.graphql") as mock_graphql:
+        mock_graphql.return_value = sample_commit_response["data"]
 
         filters = FilterConfig()
-        commits = github_service.get_commits(sample_repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
+        async with github_service as service:
+            commits = await service.get_commits(
+                sample_repo_config, filters, since=datetime.now(UTC) - timedelta(days=7)
+            )
 
         assert len(commits) == 1
         assert commits[0].author == "test_author"
         assert commits[0].message == "feat: initial commit"
 
 
-@pytest.mark.unit
-def test_github_service_commits_exclude_regex():
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_github_service_commits_exclude_regex(github_service):
     """Test commit filtering with regex exclusion."""
-    github_service = GitHubService(token="test_token", enable_retry=False)
-
     response_data = {
-        "data": {
-            "repository": {
-                "defaultBranchRef": {
-                    "target": {
-                        "history": {
-                            "pageInfo": {"hasNextPage": False, "endCursor": None},
-                            "nodes": [
-                                {
-                                    "oid": "1",
-                                    "messageHeadline": "feat: new feature",
-                                    "author": {
-                                        "name": "test_author",
-                                        "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                                    },
-                                    "url": "https://github.com/owner/repo/commit/1",
+        "repository": {
+            "defaultBranchRef": {
+                "target": {
+                    "history": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "oid": "1",
+                                "messageHeadline": "feat: new feature",
+                                "author": {
+                                    "name": "test_author",
+                                    "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                                 },
-                                {
-                                    "oid": "2",
-                                    "messageHeadline": "vim-patch: some patch",
-                                    "author": {
-                                        "name": "test_author",
-                                        "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                                    },
-                                    "url": "https://github.com/owner/repo/commit/2",
+                                "url": "https://github.com/owner/repo/commit/1",
+                            },
+                            {
+                                "oid": "2",
+                                "messageHeadline": "vim-patch: some patch",
+                                "author": {
+                                    "name": "test_author",
+                                    "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                                 },
-                            ],
-                        }
+                                "url": "https://github.com/owner/repo/commit/2",
+                            },
+                        ],
                     }
                 }
             }
         }
     }
 
-    with patch("httpx.Client.post") as mock_post:
-        mock_post.return_value.json.return_value = response_data
-        mock_post.return_value.raise_for_status.return_value = None
+    with patch("gidgethub.httpx.GitHubAPI.graphql") as mock_graphql:
+        mock_graphql.return_value = response_data
 
         filters = FilterConfig(commits=CommitFilterConfig(exclude_commit_messages_regex="vim-patch"))
         repo_config = RepoConfig(name="owner/repo", include_commits=True)
 
-        commits = github_service.get_commits(repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
+        async with github_service as service:
+            commits = await service.get_commits(repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
 
         assert len(commits) == 1
         assert commits[0].message == "feat: new feature"
 
 
 @pytest.mark.unit
-def test_github_service_commits_disabled():
+@pytest.mark.asyncio
+async def test_github_service_commits_disabled(github_service):
     """Test that commits are not fetched when disabled."""
-    service = GitHubService(token="test_token", enable_retry=False)
     repo = RepoConfig(name="owner/repo", include_commits=False)
     filters = FilterConfig()
-    commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
+    async with github_service as service:
+        commits = await service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
     assert len(commits) == 0
 
 
-@pytest.mark.unit
-def test_retry_disabled_for_tests():
-    """Test that retry is properly disabled for test instances."""
-    service = GitHubService(token="test_token", enable_retry=False)
-    assert service.client.enable_retry is False
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_context_manager():
+    """Test async context manager functionality."""
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = MagicMock()
+        mock_client.aclose = AsyncMock()
+        mock_client_class.return_value = mock_client
+
+        with patch("gidgethub.httpx.GitHubAPI"):
+            service = GitHubService("test_token")
+
+            async with service as gh_service:
+                assert gh_service.session is not None
+                assert gh_service.gh_client is not None
+
+            # Verify cleanup was called
+            mock_client.aclose.assert_called_once()
 
 
-@pytest.mark.unit
-def test_retry_enabled_by_default():
-    """Test that retry is enabled by default."""
-    service = GitHubService(token="test_token")
-    assert service.client.enable_retry is True
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_rate_limit_access():
+    """Test rate limit information access."""
+    with patch("httpx.AsyncClient") as mock_client_class, patch("gidgethub.httpx.GitHubAPI") as mock_github_api:
+        mock_client = MagicMock()
+        mock_client.aclose = AsyncMock()
+        mock_client_class.return_value = mock_client
+
+        mock_rate_limit = MagicMock()
+        mock_rate_limit.remaining = 4000
+        mock_rate_limit.limit = 5000
+
+        mock_api_instance = MagicMock()
+        mock_api_instance.rate_limit = mock_rate_limit
+        mock_github_api.return_value = mock_api_instance
+
+        service = GitHubService("test_token")
+
+        async with service as gh_service:
+            gh_service.gh_client = mock_api_instance
+            if gh_service.rate_limit:
+                assert gh_service.rate_limit.remaining == 4000
+                assert gh_service.rate_limit.limit == 5000

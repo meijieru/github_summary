@@ -26,14 +26,6 @@ pyrefly check      # Type checking and advanced static analysis
 
 Most linting issues can be automatically fixed with `ruff check . --fix`. For type errors from pyrefly, manual fixes are typically required.
 
-## Test Structure
-
-- **`test_config.py`** - Configuration loading and validation
-- **`test_github_client.py`** - GitHub GraphQL API client
-- **`test_cron_schedule.py`** - APScheduler integration
-- **`test_rss.py`** - RSS feed generation
-- **`test_summarizer.py`** - LLM integration
-
 ## Writing Tests
 
 Use `@pytest.mark.unit` for fast tests, `@pytest.mark.integration` for tests with `@patch`:
