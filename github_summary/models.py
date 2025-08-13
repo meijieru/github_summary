@@ -145,7 +145,6 @@ class GitHubConfig(BaseModel):
 class RssConfig(BaseModel):
     """Configuration for the RSS feed."""
 
-    enabled: bool = False
     title: str = "GitHub Repository Summaries"
     link: str = "http://localhost/rss.xml"
     description: str = "Summaries of recent activity in GitHub repositories."

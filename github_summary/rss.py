@@ -9,20 +9,36 @@ from github_summary.models import RssConfig
 logger = logging.getLogger(__name__)
 
 
-def create_rss_feed(rss_config: RssConfig) -> FeedGenerator:
-    """Initializes and returns a new FeedGenerator instance based on the provided configuration.
+class RSSFeedManager:
+    """Context manager for handling RSS feed creation, management, and saving."""
 
-    Args:
-        rss_config: The RSS configuration.
+    def __init__(self, rss_config: RssConfig, output_dir: str):
+        """Initialize the RSS feed manager.
 
-    Returns:
-        A FeedGenerator instance.
-    """
-    feed = FeedGenerator()
-    feed.title(rss_config.title)
-    feed.link(href=rss_config.link, rel="alternate")
-    feed.description(rss_config.description)
-    return feed
+        Args:
+            rss_config: The RSS configuration.
+            output_dir: The directory to save the feed in.
+        """
+        self.rss_config = rss_config
+        self.output_dir = output_dir
+        self.feed: FeedGenerator | None = None
+
+    def __enter__(self) -> FeedGenerator:
+        """Create and return the RSS feed."""
+        self.feed = FeedGenerator()
+        self.feed.title(self.rss_config.title)
+        self.feed.link(href=self.rss_config.link, rel="alternate")
+        self.feed.description(self.rss_config.description)
+        return self.feed
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Save the RSS feed on exit."""
+        if self.feed:
+            output_path = Path(self.output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+            file_path = output_path / self.rss_config.filename
+            self.feed.rss_file(str(file_path))
+            logger.info("RSS feed saved to %s", file_path)
 
 
 def add_entry_to_feed(feed: FeedGenerator, summary: str, repo_name: str):
@@ -40,18 +56,3 @@ def add_entry_to_feed(feed: FeedGenerator, summary: str, repo_name: str):
     entry.title(f"Summary for {repo_name}")
     entry.description(summary)
     entry.content(html_summary, type="html")
-
-
-def save_rss_feed(feed: FeedGenerator, rss_config: RssConfig, output_dir: str):
-    """Saves the RSS feed to a file.
-
-    Args:
-        feed: The FeedGenerator instance.
-        rss_config: The RSS configuration.
-        output_dir: The directory to save the feed in.
-    """
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    file_path = output_path / rss_config.filename
-    feed.rss_file(str(file_path))
-    logger.info("RSS feed saved to %s", file_path)

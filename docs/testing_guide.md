@@ -9,13 +9,30 @@ pytest -m integration                                 # integration tests (with 
 pytest tests/test_config.py::test_load_config_success # Specific test
 ```
 
+## Code Quality & Linting
+
+Before running tests, ensure your code passes linting and type checking:
+
+```bash
+ruff check .       # Check for linting issues (style, imports, etc.)
+ruff check . --fix # Auto-fix linting issues where possible
+pyrefly check      # Type checking and advanced static analysis
+```
+
+**Linting Tools:**
+
+- **ruff**: Fast Python linter covering style, imports, and code quality
+- **pyrefly**: Advanced type checker for catching type-related issues
+
+Most linting issues can be automatically fixed with `ruff check . --fix`. For type errors from pyrefly, manual fixes are typically required.
+
 ## Test Structure
 
-- **`test_config.py`** - Configuration loading and validation (3 tests)
-- **`test_github_client.py`** - GitHub GraphQL API client (19 tests)
-- **`test_cron_schedule.py`** - APScheduler integration (9 tests)
-- **`test_rss.py`** - RSS feed generation (4 tests)
-- **`test_summarizer.py`** - LLM integration (2 tests)
+- **`test_config.py`** - Configuration loading and validation
+- **`test_github_client.py`** - GitHub GraphQL API client
+- **`test_cron_schedule.py`** - APScheduler integration
+- **`test_rss.py`** - RSS feed generation
+- **`test_summarizer.py`** - LLM integration
 
 ## Writing Tests
 
@@ -34,4 +51,3 @@ def test_scheduler_registers_jobs(mock_load_config):
 ```
 
 Fixtures are defined per-file (see `test_github_client.py` for GitHub API fixtures).
-

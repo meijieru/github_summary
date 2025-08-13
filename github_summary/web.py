@@ -46,6 +46,8 @@ def build_web_app(config_path: Optional[str] = None) -> FastAPI:
     def healthz() -> JSONResponse:
         return JSONResponse({"status": "ok"})
 
+    # Ensure config_path is a string at this point
+    assert config_path is not None, "config_path should not be None at this point"
     cfg = load_config(config_path)
     app.mount("/", StaticFiles(directory=cfg.output_dir, html=False), name="static")
 

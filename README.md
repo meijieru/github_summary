@@ -109,7 +109,13 @@ github-summary utils list-labels owner/repo
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Run tests: `pytest` (see [Testing Guide](docs/testing_guide.md))
+5. Run linting and tests:
+   ```bash
+   ruff check .          # Check for linting issues
+   ruff check . --fix    # Auto-fix linting issues
+   pyrefly check         # Type checking
+   pytest                # Run tests
+   ```
 6. Submit a pull request
 
 For development guidelines, see [GEMINI.md](GEMINI.md) and [Testing Guide](docs/testing_guide.md).

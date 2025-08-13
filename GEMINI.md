@@ -21,7 +21,7 @@ This section provides essential context for AI development assistants:
 - Maintain consistency with existing codebase patterns
 - Use UTC for all internal timestamp processing
 - Prefer GraphQL API over REST when possible
-- **Testing Framework:** Use pytest for all testing (no unittest.TestCase classes)
+- **Code Quality:** All code must pass `ruff check` and `pyrefly check` before submission
 
 ## Related Documentation
 
@@ -33,4 +33,3 @@ For comprehensive project information, refer to:
 - **[docs/API.md](docs/API.md)** - API documentation and integration details
 - **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Codebase structure overview
 - **[docs/testing_guide.md](docs/testing_guide.md)** - Testing guidelines and pytest usage
-

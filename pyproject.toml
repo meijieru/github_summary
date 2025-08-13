@@ -9,11 +9,10 @@ dependencies = [
     "typer",
     "rich",
     "python-dotenv",
-    "requests",
+    "httpx",
     "pytest",
     "toml",
     "openai",
-    "ipdb",
     "feedgen",
     "markdown-it-py",
     "tenacity",
@@ -44,3 +43,6 @@ markers = [
     "unit: marks tests as unit tests",
     "integration: marks tests as integration tests",
 ]
+
+[dependency-groups]
+dev = ["pyrefly>=0.28.1", "ruff>=0.12.8", "ipdb"]

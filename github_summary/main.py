@@ -66,7 +66,8 @@ def list_labels(
     config = load_config(config_path)
     token = config.github.token or os.environ.get("GITHUB_TOKEN")
     if not token:
-        raise typer.Exit("GITHUB_TOKEN not found in config or environment.")
+        logging.error("GitHub token is required. Set it in the config file or as an environment variable.")
+        raise typer.Exit(1)
     github_service = GitHubService(token)
     owner, repo = repo_name.split("/")
     labels = github_service.get_all_labels(owner, repo)

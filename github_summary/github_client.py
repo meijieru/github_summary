@@ -2,9 +2,10 @@ import logging
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, MutableMapping
 
-import requests
+import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, RepoConfig
 from github_summary.queries import (
@@ -18,18 +19,39 @@ from github_summary.queries import (
 logger = logging.getLogger(__name__)
 
 
+def _conditional_retry(enable_retry: bool):
+    """Decorator factory that conditionally applies retry logic."""
+    if enable_retry:
+        return retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    else:
+        # No-op decorator for tests
+        return lambda func: func
+
+
 class GraphQLClient:
-    def __init__(self, token: str):
+    def __init__(self, token: str, enable_retry: bool = True):
         """Initializes the GraphQLClient with a GitHub personal access token.
 
         Args:
             token: The GitHub personal access token.
+            enable_retry: Whether to enable retry logic (disable for tests).
         """
         self.url = "https://api.github.com/graphql"
         self.headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github.v3+json",
         }
+        self.client = httpx.Client(timeout=30.0)
+        self.enable_retry = enable_retry
+
+        # Apply retry decorator conditionally
+        self._execute_request = _conditional_retry(enable_retry)(self._execute_request)
+
+    def _execute_request(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute the actual HTTP request."""
+        response = self.client.post(self.url, json={"query": query, "variables": variables}, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
 
     def _execute(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         """Executes a GraphQL query.
@@ -42,19 +64,20 @@ class GraphQLClient:
             The JSON response from the GraphQL API.
 
         Raises:
-            requests.exceptions.HTTPError: If the API request fails.
+            httpx.HTTPError: If the API request fails.
         """
         logger.debug("Executing GraphQL query:\nQuery: %s\nVariables: %s", query, variables)
-        response = requests.post(self.url, json={"query": query, "variables": variables}, headers=self.headers)
-        response.raise_for_status()
-        logger.debug("GraphQL query response: %s", response.json())
-        return response.json()
+
+        result = self._execute_request(query, variables)
+        logger.debug("GraphQL query response: %s", result)
+        return result
 
     def _paginate(
         self,
         query: str,
         variables: dict[str, Any],
         data_extractor: Callable[[dict[str, Any]], dict[str, Any]],
+        max_pages: int = 5,
     ) -> list[dict[str, Any]]:
         """Paginates through GraphQL query results.
 
@@ -62,6 +85,7 @@ class GraphQLClient:
             query: The GraphQL query string.
             variables: A dictionary of variables for the query, including pagination cursors.
             data_extractor: A callable that extracts the relevant data (nodes and pageInfo) from the GraphQL response.
+            max_pages: Maximum number of pages to fetch. Defaults to 10.
 
         Returns:
             A list of all nodes retrieved through pagination.
@@ -69,11 +93,12 @@ class GraphQLClient:
         all_nodes = []
         has_next_page = True
         cursor = None
+        # Create a new dict to avoid mutating the input
+        variables = dict(variables)
 
         i = 0
-        # TODO(meijierun): Remove the limit of 5 pages.
-        while has_next_page and i < 5:
-            variables["cursor"] = cursor
+        while has_next_page and i < max_pages:
+            variables.update({"cursor": cursor})
             data = self._execute(query, variables)
             page_data = data_extractor(data)
             all_nodes.extend(page_data["nodes"])
@@ -81,17 +106,20 @@ class GraphQLClient:
             cursor = page_data["pageInfo"]["endCursor"]
             i += 1
 
+        if has_next_page and i >= max_pages:
+            logger.warning("Reached maximum page limit (%d). Some data may be missing.", max_pages)
         return all_nodes
 
 
 class GitHubService:
-    def __init__(self, token: str):
+    def __init__(self, token: str, enable_retry: bool = True):
         """Initializes the GitHubService with a personal access token.
 
         Args:
             token: The GitHub personal access token.
+            enable_retry: Whether to enable retry logic (disable for tests).
         """
-        self.client = GraphQLClient(token)
+        self.client = GraphQLClient(token, enable_retry=enable_retry)
 
     def get_commits(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Commit]:
         """Fetches commits for a given repository, applying specified filters.

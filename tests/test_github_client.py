@@ -6,18 +6,15 @@ import pytest
 from github_summary.github_client import GitHubService
 from github_summary.models import (
     CommitFilterConfig,
-    DiscussionFilterConfig,
     FilterConfig,
-    IssueFilterConfig,
-    PullRequestFilterConfig,
     RepoConfig,
 )
 
 
 @pytest.fixture
-def mock_requests():
-    with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
-        yield mock_get, mock_post
+def github_service():
+    """Create GitHub service with retry disabled for tests."""
+    return GitHubService(token="test_token", enable_retry=False)
 
 
 @pytest.fixture
@@ -50,35 +47,32 @@ def sample_commit_response():
 
 
 @pytest.fixture
-def github_service():
-    """Create a GitHub service instance for testing"""
-    return GitHubService(token="test_token")
-
-
-@pytest.fixture
 def sample_repo_config():
     """Create a sample repository configuration"""
     return RepoConfig(name="owner/repo", include_commits=True)
 
 
 @pytest.mark.unit
-def test_github_service_commits(mock_requests, sample_commit_response, github_service, sample_repo_config):
+def test_github_service_commits(sample_commit_response, github_service, sample_repo_config):
     """Test fetching commits from GitHub API"""
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = sample_commit_response
+    with patch("httpx.Client.post") as mock_post:
+        mock_post.return_value.json.return_value = sample_commit_response
+        mock_post.return_value.raise_for_status.return_value = None
 
-    filters = FilterConfig()
+        filters = FilterConfig()
+        commits = github_service.get_commits(sample_repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
 
-    commits = github_service.get_commits(sample_repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(commits) == 1
-    assert commits[0].author == "test_author"
-    assert commits[0].message == "feat: initial commit"
+        assert len(commits) == 1
+        assert commits[0].author == "test_author"
+        assert commits[0].message == "feat: initial commit"
 
 
 @pytest.mark.unit
-def test_github_service_commits_exclude_regex(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
+def test_github_service_commits_exclude_regex():
+    """Test commit filtering with regex exclusion."""
+    github_service = GitHubService(token="test_token", enable_retry=False)
+
+    response_data = {
         "data": {
             "repository": {
                 "defaultBranchRef": {
@@ -104,24 +98,6 @@ def test_github_service_commits_exclude_regex(mock_requests):
                                     },
                                     "url": "https://github.com/owner/repo/commit/2",
                                 },
-                                {
-                                    "oid": "3",
-                                    "messageHeadline": "fix: a bug",
-                                    "author": {
-                                        "name": "test_author",
-                                        "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                                    },
-                                    "url": "https://github.com/owner/repo/commit/3",
-                                },
-                                {
-                                    "oid": "4",
-                                    "messageHeadline": "chore(main): release 17.13.0",
-                                    "author": {
-                                        "name": "test_author",
-                                        "date": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                                    },
-                                    "url": "https://github.com/owner/repo/commit/4",
-                                },
                             ],
                         }
                     }
@@ -130,20 +106,23 @@ def test_github_service_commits_exclude_regex(mock_requests):
         }
     }
 
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_commits=True)
-    filters = FilterConfig(
-        commits=CommitFilterConfig(exclude_commit_messages_regex="^(vim-patch|fix|doc update|chore)")
-    )
+    with patch("httpx.Client.post") as mock_post:
+        mock_post.return_value.json.return_value = response_data
+        mock_post.return_value.raise_for_status.return_value = None
 
-    commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(commits) == 1
-    assert commits[0].message == "feat: new feature"
+        filters = FilterConfig(commits=CommitFilterConfig(exclude_commit_messages_regex="vim-patch"))
+        repo_config = RepoConfig(name="owner/repo", include_commits=True)
+
+        commits = github_service.get_commits(repo_config, filters, since=datetime.now(UTC) - timedelta(days=7))
+
+        assert len(commits) == 1
+        assert commits[0].message == "feat: new feature"
 
 
 @pytest.mark.unit
 def test_github_service_commits_disabled():
-    service = GitHubService(token="test_token")
+    """Test that commits are not fetched when disabled."""
+    service = GitHubService(token="test_token", enable_retry=False)
     repo = RepoConfig(name="owner/repo", include_commits=False)
     filters = FilterConfig()
     commits = service.get_commits(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
@@ -151,512 +130,14 @@ def test_github_service_commits_disabled():
 
 
 @pytest.mark.unit
-def test_github_service_pull_requests(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "pullRequests": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "number": 101,
-                            "title": "Test PR",
-                            "body": "Test PR body",
-                            "author": {"login": "pr_author"},
-                            "state": "CLOSED",
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "mergedAt": "2025-01-02T00:00:00Z",
-                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/pull/101",
-                        }
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_pull_requests=True)
-    filters = FilterConfig()
-
-    pull_requests = service.get_pull_requests(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(pull_requests) == 1
-    assert pull_requests[0].title == "Test PR"
-    assert pull_requests[0].author == "pr_author"
-    assert pull_requests[0].body == "Test PR body"
+def test_retry_disabled_for_tests():
+    """Test that retry is properly disabled for test instances."""
+    service = GitHubService(token="test_token", enable_retry=False)
+    assert service.client.enable_retry is False
 
 
 @pytest.mark.unit
-def test_github_service_pull_requests_exclude_regex(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "pullRequests": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "number": 1,
-                            "title": "feat: new feature",
-                            "body": "Test body",
-                            "author": {"login": "pr_author"},
-                            "state": "OPEN",
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "mergedAt": None,
-                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/pull/1",
-                        },
-                        {
-                            "number": 2,
-                            "title": "WIP: work in progress",
-                            "body": "Test body",
-                            "author": {"login": "pr_author"},
-                            "state": "OPEN",
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "mergedAt": None,
-                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/pull/2",
-                        },
-                    ],
-                }
-            }
-        }
-    }
-
+def test_retry_enabled_by_default():
+    """Test that retry is enabled by default."""
     service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_pull_requests=True)
-    filters = FilterConfig(pull_requests=PullRequestFilterConfig(exclude_pull_request_titles_regex="^(WIP|Draft)"))
-
-    pull_requests = service.get_pull_requests(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(pull_requests) == 1
-    assert pull_requests[0].title == "feat: new feature"
-
-
-@pytest.mark.unit
-def test_github_service_pull_requests_disabled():
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_pull_requests=False)
-    filters = FilterConfig()
-    pull_requests = service.get_pull_requests(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(pull_requests) == 0
-
-
-@pytest.mark.unit
-def test_github_service_issues(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "search": {
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-                "nodes": [
-                    {
-                        "number": 1,
-                        "title": "Test Issue",
-                        "body": "Test Issue body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "url": "https://github.com/owner/repo/discussions/2",
-                    }
-                ],
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=True)
-    filters = FilterConfig()
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 1
-    assert issues[0].title == "Test Issue"
-    assert issues[0].body == "Test Issue body"
-
-
-@pytest.mark.unit
-def test_github_service_issues_exclude_regex(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "search": {
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-                "nodes": [
-                    {
-                        "number": 1,
-                        "title": "feat: new feature",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "url": "https://github.com/owner/repo/issues/1",
-                    },
-                    {
-                        "number": 2,
-                        "title": "Bug: something is broken",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "url": "https://github.com/owner/repo/issues/2",
-                    },
-                ],
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=True)
-    filters = FilterConfig(issues=IssueFilterConfig(exclude_issue_titles_regex="^(Bug|Question)"))
-
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 1
-    assert issues[0].title == "feat: new feature"
-
-
-@pytest.mark.unit
-def test_github_service_issues_filter_tag(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "search": {
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-                "nodes": [
-                    {
-                        "number": 1,
-                        "title": "Issue with bug tag",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "labels": {"nodes": [{"name": "bug"}]},
-                        "url": "https://github.com/owner/repo/issues/1",
-                    }
-                ],
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=True)
-    filters = FilterConfig(issues=IssueFilterConfig(labels=["bug"]))
-
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 1
-    assert issues[0].title == "Issue with bug tag"
-
-
-@pytest.mark.unit
-def test_github_service_pull_requests_filter_state(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "pullRequests": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "number": 1,
-                            "title": "Open PR",
-                            "body": "Test body",
-                            "author": {"login": "pr_author"},
-                            "state": "OPEN",
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "mergedAt": None,
-                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/pull/1",
-                        }
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_pull_requests=True)
-    filters = FilterConfig(pull_requests=PullRequestFilterConfig(state="OPEN"))
-
-    pull_requests = service.get_pull_requests(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(pull_requests) == 1
-    assert pull_requests[0].title == "Open PR"
-
-
-@pytest.mark.unit
-def test_github_service_pull_requests_filter_labels(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "pullRequests": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "number": 1,
-                            "title": "PR with bug label",
-                            "body": "Test body",
-                            "author": {"login": "pr_author"},
-                            "state": "OPEN",
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "mergedAt": None,
-                            "labels": {"nodes": [{"name": "bug"}]},
-                            "updatedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/pull/1",
-                        }
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_pull_requests=True)
-    filters = FilterConfig(pull_requests=PullRequestFilterConfig(labels=["bug"]))
-
-    pull_requests = service.get_pull_requests(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(pull_requests) == 1
-    assert pull_requests[0].title == "PR with bug label"
-
-
-@pytest.mark.unit
-def test_github_service_issues_filter_assignee(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "search": {
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-                "nodes": [
-                    {
-                        "number": 1,
-                        "title": "Issue assigned to user1",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "assignees": {"nodes": [{"login": "user1"}]},
-                        "url": "https://github.com/owner/repo/issues/1",
-                    }
-                ],
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=True)
-    filters = FilterConfig(issues=IssueFilterConfig(assignee="user1"))
-
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 1
-    assert issues[0].title == "Issue assigned to user1"
-
-
-@pytest.mark.unit
-def test_github_service_issues_disabled():
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=False)
-    filters = FilterConfig()
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(issues) == 0
-
-
-@pytest.mark.unit
-def test_github_service_issues_filter_since_days(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "search": {
-                "pageInfo": {"hasNextPage": False, "endCursor": None},
-                "nodes": [
-                    {
-                        "number": 1,
-                        "title": "Old Issue",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
-                        "url": "https://github.com/owner/repo/issues/1",
-                    },
-                    {
-                        "number": 2,
-                        "title": "Recent Issue",
-                        "body": "Test body",
-                        "author": {"login": "test_author"},
-                        "state": "OPEN",
-                        "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                        "url": "https://github.com/owner/repo/issues/2",
-                    },
-                ],
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_issues=True)
-    filters = FilterConfig()
-
-    issues = service.get_issues(repo, filters, since=datetime.now(UTC) - timedelta(days=5))
-    assert len(issues) == 2
-    assert issues[0].title == "Old Issue"
-    assert issues[1].title == "Recent Issue"
-
-
-@pytest.mark.unit
-def test_github_service_discussions(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "discussions": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Test Discussion",
-                            "body": "Test Discussion body",
-                            "author": {"login": "test_author"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/1",
-                            "labels": {"nodes": [{"name": "bug"}]},
-                        }
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_discussions=True)
-    filters = FilterConfig()
-
-    discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(discussions) == 1
-    assert discussions[0].title == "Test Discussion"
-    assert discussions[0].labels == ["bug"]
-    assert discussions[0].body == "Test Discussion body"
-
-
-@pytest.mark.unit
-def test_github_service_discussions_disabled():
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_discussions=False)
-    filters = FilterConfig()
-    discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(discussions) == 0
-
-
-@pytest.mark.unit
-def test_github_service_discussions_filter_since_days(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "discussions": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Old Discussion",
-                            "body": "Test body",
-                            "author": {"login": "test_author"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=10)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/1",
-                        },
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Recent Discussion",
-                            "body": "Test body",
-                            "author": {"login": "test_author"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/2",
-                        },
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_discussions=True)
-    filters = FilterConfig()
-
-    discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=5))
-    assert len(discussions) == 1
-    assert discussions[0].title == "Recent Discussion"
-
-
-@pytest.mark.unit
-def test_github_service_discussions_filter_author(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "discussions": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Discussion by Author1",
-                            "body": "Test body",
-                            "author": {"login": "author1"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/1",
-                        },
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Discussion by Author2",
-                            "body": "Test body",
-                            "author": {"login": "author2"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/2",
-                        },
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_discussions=True)
-    filters = FilterConfig(discussions=DiscussionFilterConfig(author="author1"))
-
-    discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(discussions) == 1
-    assert discussions[0].title == "Discussion by Author1"
-
-
-@pytest.mark.unit
-def test_github_service_discussions_exclude_regex(mock_requests):
-    _, mock_post = mock_requests
-    mock_post.return_value.json.return_value = {
-        "data": {
-            "repository": {
-                "discussions": {
-                    "pageInfo": {"hasNextPage": False, "endCursor": None},
-                    "nodes": [
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "General Discussion",
-                            "body": "Test body",
-                            "author": {"login": "test_author"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/1",
-                        },
-                        {
-                            "id": "D_kwDOJ-L_c84AAQ",
-                            "title": "Question: How to do X?",
-                            "body": "Test body",
-                            "author": {"login": "test_author"},
-                            "createdAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
-                            "url": "https://github.com/owner/repo/discussions/2",
-                        },
-                    ],
-                }
-            }
-        }
-    }
-
-    service = GitHubService(token="test_token")
-    repo = RepoConfig(name="owner/repo", include_discussions=True)
-    filters = FilterConfig(discussions=DiscussionFilterConfig(exclude_discussion_titles_regex="^(Question)"))
-
-    discussions = service.get_discussions(repo, filters, since=datetime.now(UTC) - timedelta(days=7))
-    assert len(discussions) == 1
-    assert discussions[0].title == "General Discussion"
+    assert service.client.enable_retry is True

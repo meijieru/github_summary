@@ -91,10 +91,13 @@ def test_summarizer_output_json():
     mock_service = Mock()
 
     with (
-        patch("github_summary.actions._get_services", return_value=(mock_config, mock_service, summarizer_instance)),
+        patch("github_summary.actions.load_config", return_value=mock_config),
+        patch("github_summary.actions.create_github_service", return_value=mock_service),
+        patch("github_summary.actions.create_summarizer", return_value=summarizer_instance),
         patch("json.dump") as mock_json_dump,
         patch("github_summary.actions.set_last_run_time") as mock_set_last_run_time,
         patch.object(summarizer_instance, "summarize", return_value="Mocked LLM Summary") as mock_summarize_method,
+        patch("github_summary.actions.setup_logging"),
     ):
         mock_service.get_commits.return_value = [
             Commit(
