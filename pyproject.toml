@@ -20,7 +20,7 @@ dependencies = [
     "tzlocal>=5.3.1",
     "fastapi",
     "uvicorn[standard]",
-    "croniter",
+    "apscheduler",
 ]
 
 [project.scripts]

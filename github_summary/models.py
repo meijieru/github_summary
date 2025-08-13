@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Literal
 
-from croniter import croniter
 from pydantic import BaseModel, Field, model_validator
 from tzlocal import get_localzone_name
 
@@ -158,15 +157,6 @@ class ScheduleConfig(BaseModel):
 
     cron: str = "0 6 * * *"  # Default: daily at 6 AM (cron format: minute hour day month weekday)
     timezone: str | None = None  # Optional timezone (e.g., "America/New_York", "UTC")
-
-    @model_validator(mode="after")
-    def validate_cron_syntax(self) -> ScheduleConfig:
-        """Validate cron expression using croniter."""
-        try:
-            croniter(self.cron)
-        except (ValueError, TypeError) as e:
-            raise ValueError(f"Invalid cron expression '{self.cron}': {e}")
-        return self
 
 
 class Config(BaseModel):

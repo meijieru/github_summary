@@ -11,11 +11,11 @@ pytest tests/test_config.py::test_load_config_success # Specific test
 
 ## Test Structure
 
-- **`test_config.py`** - Configuration loading and validation
-- **`test_github_client.py`** - GitHub GraphQL API client
-- **`test_cron_schedule.py`** - Scheduling and cron validation
-- **`test_rss.py`** - RSS feed generation
-- **`test_summarizer.py`** - LLM integration
+- **`test_config.py`** - Configuration loading and validation (3 tests)
+- **`test_github_client.py`** - GitHub GraphQL API client (19 tests)
+- **`test_cron_schedule.py`** - APScheduler integration (9 tests)
+- **`test_rss.py`** - RSS feed generation (4 tests)
+- **`test_summarizer.py`** - LLM integration (2 tests)
 
 ## Writing Tests
 
