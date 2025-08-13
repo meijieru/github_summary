@@ -126,6 +126,27 @@ def calculate_since_time(config: Config, config_path: str) -> datetime:
     return fallback_since
 
 
+def calculate_since_time_for_repo(config: Config, config_path: str, repo_name: str) -> datetime:
+    """Calculate the 'since' time for a specific repository based on config and last run."""
+    fallback_since = datetime.now(UTC) - timedelta(days=config.fallback_lookback_days)
+
+    if not config.since_last_run:
+        return fallback_since
+
+    # Try per-repository last run time first
+    last_run_time = get_last_run_time(config_path, repo_name)
+    if last_run_time:
+        return last_run_time
+
+    # Fall back to global last run time for backward compatibility
+    global_last_run_time = get_last_run_time(config_path)
+    if global_last_run_time:
+        return global_last_run_time
+
+    logger.warning("No last run time found for %s, falling back to %s days.", repo_name, config.fallback_lookback_days)
+    return fallback_since
+
+
 def filter_repositories(config: Config, repo_name: str | None) -> list[RepoConfig]:
     """Filter repositories based on repo_name parameter."""
     if not repo_name:
@@ -190,13 +211,16 @@ def process_repository(
     github_service: GitHubService,
     summarizer: Summarizer | None,
     config: Config,
-    since: datetime,
+    config_path: str,
     feed,
     save_markdown: bool,
     save_json: bool,
 ) -> None:
     """Process a single repository: fetch data, generate summary, save results."""
     logger.info("Processing repository: %s", repo.name)
+
+    # Calculate since time for this specific repository
+    since = calculate_since_time_for_repo(config, config_path, repo.name)
 
     # Fetch data
     repo_data = fetch_repo_data(repo, github_service, config, since)
@@ -214,6 +238,10 @@ def process_repository(
 
     if save_json:
         save_json_report(repo.name, repo_data, config.output_dir)
+
+    # Update last run time for this repository if since_last_run is enabled
+    if config.since_last_run:
+        set_last_run_time(config_path, repo.name)
 
 
 def run_report(
@@ -258,7 +286,6 @@ def run_report(
 
     # Calculate time range and filter repos
     try:
-        since = calculate_since_time(config, config_path)
         repositories = filter_repositories(config, repo_name)
     except ValueError as e:
         logger.error(str(e))
@@ -276,15 +303,11 @@ def run_report(
                     github_service=github_service,
                     summarizer=summarizer if not skip_summary else None,
                     config=config,
-                    since=since,
+                    config_path=config_path,
                     feed=feed,
                     save_markdown=save_markdown,
                     save_json=save,
                 )
-
-        # Update last run time
-        if config.since_last_run:
-            set_last_run_time(config_path)
 
     except Exception as e:
         logger.error("Unexpected error: %s", e)
