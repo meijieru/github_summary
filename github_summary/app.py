@@ -28,7 +28,7 @@ from github_summary.llm_client import AsyncLLMClient
 from github_summary.models import Config, FilterConfig, RepoConfig
 from github_summary.rss import generate_feed_from_summaries
 from github_summary.summarizer import Summarizer
-from github_summary.summary_cache import add_summary_to_cache, load_summaries
+from github_summary.summary_cache import add_summaries_to_cache, load_summaries
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +414,7 @@ class GitHubSummaryApp:
 
                 # Process results
                 last_run_updates = {}
+                cache_entries = []
 
                 for i, result in enumerate(results):
                     if isinstance(result, Exception) or result is None:
@@ -426,7 +427,7 @@ class GitHubSummaryApp:
                         run_key = _get_run_key(self.config_path, repo_name)
                         last_run_updates[run_key] = completion_time
 
-                    # Add successful summary to cache
+                    # Collect successful summaries for batch caching
                     if summary and self.config.rss:
                         summary_id = f"{repo_name}-{completion_time.isoformat()}"
                         repo_link = f"https://github.com/{repo_name}"
@@ -438,7 +439,12 @@ class GitHubSummaryApp:
                             "link": repo_link,
                             "timestamp": completion_time.isoformat(),
                         }
-                        await add_summary_to_cache(cache_entry)
+                        cache_entries.append(cache_entry)
+
+                # Batch add all summaries to cache
+                if cache_entries:
+                    added_count = await add_summaries_to_cache(cache_entries)
+                    logger.info("Added %d summaries to cache", added_count)
 
                 # Log rate limit info
                 if github_service.rate_limit:

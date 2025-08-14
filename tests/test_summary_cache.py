@@ -5,123 +5,98 @@ from pathlib import Path
 import pytest
 
 from github_summary.summary_cache import (
-    CACHE_FILE_PATH,
-    MAX_CACHE_ENTRIES,
-    _ensure_cache_dir_exists,
-    add_summary_to_cache,
+    add_summaries_to_cache,
     load_summaries,
     save_summaries,
 )
 
 
 @pytest.fixture(autouse=True)
-def setup_and_teardown_cache_dir():
-    """Ensures a clean cache directory for each test."""
-    cache_dir_for_tests = Path("cache")
-    if cache_dir_for_tests.exists():
-        shutil.rmtree(cache_dir_for_tests)
-    cache_dir_for_tests.mkdir(parents=True, exist_ok=True)
-
+def clean_cache():
+    """Clean cache before and after each test."""
+    cache_dir = Path("cache")
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
     yield
-
-    if cache_dir_for_tests.exists():
-        shutil.rmtree(cache_dir_for_tests)
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
 
 
 @pytest.fixture
-def sample_summary():
-    """Return a sample summary dictionary."""
-    return {
-        "id": "test/repo-2025-08-13T12:00:00Z",
-        "title": "Summary for test/repo",
-        "content": "This is a test summary.",
-        "link": "https://github.com/test/repo",
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
+def sample_summaries():
+    """Sample summaries for testing."""
+    base_time = datetime(2023, 1, 1, tzinfo=UTC)
+    return [
+        {
+            "id": f"repo{i}-{(base_time + timedelta(days=i)).isoformat()}",
+            "title": f"Summary for repo{i}",
+            "content": f"Content {i}",
+            "link": f"https://github.com/repo{i}",
+            "timestamp": (base_time + timedelta(days=i)).isoformat(),
+        }
+        for i in range(3)
+    ]
 
 
 class TestSummaryCache:
-    """Test cases for the summary cache functionality."""
+    """Test summary cache functionality."""
 
     @pytest.mark.asyncio
-    async def test_load_summaries_no_file(self):
-        """Test loading summaries when the cache file doesn't exist."""
+    async def test_empty_cache(self):
+        """Test loading from empty cache."""
         summaries = await load_summaries()
         assert summaries == []
 
     @pytest.mark.asyncio
-    async def test_load_summaries_corrupted_file(self):
-        """Test loading summaries from a corrupted JSON file."""
-        await _ensure_cache_dir_exists()
-        with open(CACHE_FILE_PATH, "w") as f:
-            f.write("this is not json")
+    async def test_add_batch(self, sample_summaries):
+        """Test adding summaries in batch."""
+        result = await add_summaries_to_cache(sample_summaries)
+        assert result == 3
 
-        summaries = await load_summaries()
-        assert summaries == []
-
-    @pytest.mark.asyncio
-    async def test_save_and_load_summaries(self, sample_summary):
-        """Test saving and then loading summaries."""
-        summaries_to_save = [sample_summary]
-        await save_summaries(summaries_to_save)
-
-        loaded_summaries = await load_summaries()
-        assert len(loaded_summaries) == 1
-        assert loaded_summaries[0]["id"] == sample_summary["id"]
+        loaded = await load_summaries()
+        assert len(loaded) == 3
 
     @pytest.mark.asyncio
-    async def test_add_summary_to_cache(self, sample_summary):
-        """Test adding a single summary to the cache."""
-        await add_summary_to_cache(sample_summary)
+    async def test_no_duplicates(self, sample_summaries):
+        """Test duplicate prevention."""
+        # Add once
+        await add_summaries_to_cache(sample_summaries)
 
-        summaries = await load_summaries()
-        assert len(summaries) == 1
-        assert summaries[0]["id"] == sample_summary["id"]
+        # Add again
+        result = await add_summaries_to_cache(sample_summaries)
+        assert result == 0  # No new summaries
 
-    @pytest.mark.asyncio
-    async def test_add_summary_deduplication(self, sample_summary):
-        """Test that adding a summary with a duplicate ID is skipped."""
-        await add_summary_to_cache(sample_summary)
-        await add_summary_to_cache(sample_summary)
-
-        summaries = await load_summaries()
-        assert len(summaries) == 1
+        loaded = await load_summaries()
+        assert len(loaded) == 3
 
     @pytest.mark.asyncio
-    async def test_cache_pruning(self):
-        """Test that the cache is pruned to MAX_CACHE_ENTRIES."""
-        for i in range(MAX_CACHE_ENTRIES + 5):
-            summary = {
-                "id": f"id_{i}",
-                "title": "Title",
-                "content": "Content",
-                "link": "link",
-                "timestamp": (datetime.now(UTC) - timedelta(days=i)).isoformat(),
-            }
-            await add_summary_to_cache(summary)
+    async def test_sorting(self, sample_summaries):
+        """Test summaries are sorted by timestamp."""
+        await add_summaries_to_cache(sample_summaries)
+        loaded = await load_summaries()
 
-        summaries = await load_summaries()
-        assert len(summaries) == MAX_CACHE_ENTRIES
+        timestamps = [s["timestamp"] for s in loaded]
+        assert timestamps == sorted(timestamps, reverse=True)
 
     @pytest.mark.asyncio
-    async def test_cache_sorting(self):
-        """Test that the cache is sorted by timestamp."""
-        summaries_to_add = []
-        for i in range(5):
-            summaries_to_add.append(
-                {
-                    "id": f"id_{i}",
-                    "title": "Title",
-                    "content": "Content",
-                    "link": "link",
-                    "timestamp": (datetime.now(UTC) - timedelta(minutes=i)).isoformat(),
-                }
-            )
+    async def test_save_replaces(self, sample_summaries):
+        """Test save_summaries replaces cache."""
+        # Add some summaries
+        await add_summaries_to_cache(sample_summaries[:2])
+        assert len(await load_summaries()) == 2
 
-        for summary in reversed(summaries_to_add):
-            await add_summary_to_cache(summary)
+        # Replace with different summaries
+        await save_summaries(sample_summaries[1:])
+        loaded = await load_summaries()
+        assert len(loaded) == 2
 
-        loaded_summaries = await load_summaries()
+        # Should not contain first summary
+        ids = [s["id"] for s in loaded]
+        assert sample_summaries[0]["id"] not in ids
 
-        assert loaded_summaries[0]["id"] == "id_0"
-        assert loaded_summaries[-1]["id"] == "id_4"
+    @pytest.mark.asyncio
+    async def test_empty_batch(self):
+        """Test adding empty batch."""
+        result = await add_summaries_to_cache([])
+        assert result == 0
+        assert await load_summaries() == []

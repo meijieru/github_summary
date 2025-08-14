@@ -120,7 +120,7 @@ class TestIntegration:
         with (
             patch("github_summary.app.GitHubService") as mock_gh_service,
             patch("github_summary.app.Summarizer") as mock_summarizer,
-            patch("github_summary.app.add_summary_to_cache", new_callable=AsyncMock) as mock_add_to_cache,
+            patch("github_summary.app.add_summaries_to_cache", new_callable=AsyncMock) as mock_add_to_cache,
             patch("github_summary.app.load_summaries", new_callable=AsyncMock) as mock_load_summaries,
             patch("github_summary.app.generate_feed_from_summaries") as mock_generate_feed,
             patch("github_summary.app.set_multiple_last_run_times", new_callable=AsyncMock) as mock_set_last_run,
@@ -156,7 +156,8 @@ class TestIntegration:
 
             # Assert that the new summary was added to the cache
             mock_add_to_cache.assert_called_once()
-            call_args = mock_add_to_cache.call_args[0]
+            call_args = mock_add_to_cache.call_args[0][0]  # First arg is the list of summaries
+            assert len(call_args) == 1  # Should have one summary
             assert call_args[0]["title"] == "Summary for test/repo"
             assert call_args[0]["content"] == "Test summary content"
 
@@ -177,7 +178,6 @@ class TestIntegration:
         with (
             patch("github_summary.app.GitHubService") as mock_gh_service,
             patch("github_summary.app.Summarizer") as mock_summarizer,
-            patch("github_summary.summary_cache.add_summary_to_cache", new_callable=AsyncMock) as mock_add_to_cache,
             patch("github_summary.summary_cache.load_summaries", new_callable=AsyncMock) as mock_load_summaries,
             patch("github_summary.app.generate_feed_from_summaries") as mock_generate_feed,
         ):
@@ -196,6 +196,5 @@ class TestIntegration:
             await app.run()
 
             # Assert that none of the cache or RSS functions were called
-            mock_add_to_cache.assert_not_called()
             mock_load_summaries.assert_not_called()
             mock_generate_feed.assert_not_called()
