@@ -1,11 +1,11 @@
-"""GitHub Summary Application - Core application with integrated web server."""
+"GitHub Summary Application - Core application with integrated web server."
 
 import asyncio
 import functools
 import json
 import logging
 import os
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -26,8 +26,9 @@ from github_summary.last_run_manager import (
 )
 from github_summary.llm_client import AsyncLLMClient
 from github_summary.models import Config, FilterConfig, RepoConfig
-from github_summary.rss import RSSFeedManager, add_entry_to_feed
+from github_summary.rss import generate_feed_from_summaries
 from github_summary.summarizer import Summarizer
+from github_summary.summary_cache import add_summary_to_cache, load_summaries
 
 logger = logging.getLogger(__name__)
 
@@ -308,7 +309,12 @@ class GitHubSummaryApp:
         return filtered
 
     async def _process_repository(
-        self, github_service, repo: RepoConfig, summarizer, save_markdown: bool, save_json: bool
+        self,
+        github_service,
+        repo: RepoConfig,
+        summarizer,
+        save_markdown: bool,
+        save_json: bool,
     ):
         """Process a single repository."""
         logger.info("Processing repository: %s", repo.name)
@@ -389,64 +395,69 @@ class GitHubSummaryApp:
                 logger.info("Processing %d repositories concurrently.", len(repositories))
 
             try:
-                # Use RSS context manager if configured, otherwise None
-                rss_manager = RSSFeedManager(self.config.rss, self.config.output_dir) if self.config.rss else None
+                # Create semaphore to limit concurrent repository processing
+                semaphore = asyncio.Semaphore(max_concurrent_repos)
 
-                with rss_manager or nullcontext() as feed:
-                    # Create semaphore to limit concurrent repository processing
-                    semaphore = asyncio.Semaphore(max_concurrent_repos)
-
-                    async def process_with_semaphore(repo):
-                        async with semaphore:
-                            return await self._process_repository(
-                                github_service,
-                                repo,
-                                summarizer,
-                                save_markdown,
-                                save_json,
-                            )
-
-                    # Process all repositories concurrently (with semaphore limiting)
-                    tasks = [process_with_semaphore(repo) for repo in repositories]
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                    # Process results
-                    last_run_updates = {}
-                    summaries_for_rss = []
-
-                    for i, result in enumerate(results):
-                        if isinstance(result, Exception) or result is None:
-                            logger.error("Repository %s failed with exception: %s", repositories[i].name, result)
-                            continue
-
-                        repo_name, completion_time, summary, repo_data = result
-
-                        # Collect last run time updates for batch processing
-                        if completion_time:
-                            run_key = _get_run_key(self.config_path, repo_name)
-                            last_run_updates[run_key] = completion_time
-
-                        # Collect summaries for RSS
-                        if summary and feed:
-                            summaries_for_rss.append((summary, repo_name))
-
-                    # Log rate limit info
-                    if github_service.rate_limit:
-                        logger.info(
-                            "Final rate limit: %d/%d remaining",
-                            github_service.rate_limit.remaining,
-                            github_service.rate_limit.limit,
+                async def process_with_semaphore(repo):
+                    async with semaphore:
+                        return await self._process_repository(
+                            github_service,
+                            repo,
+                            summarizer,
+                            save_markdown,
+                            save_json,
                         )
 
-                    # Add all summaries to RSS feed after processing completes
-                    if feed:
-                        for summary, repo_name in summaries_for_rss:
-                            add_entry_to_feed(feed, summary, repo_name)
+                # Process all repositories concurrently (with semaphore limiting)
+                tasks = [process_with_semaphore(repo) for repo in repositories]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                    # Batch update last run times (async)
-                    if last_run_updates:
-                        await set_multiple_last_run_times(last_run_updates)
-                        logger.info("Updated last run times for %d repositories", len(last_run_updates))
+                # Process results
+                last_run_updates = {}
+
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception) or result is None:
+                        logger.error("Repository %s failed with exception: %s", repositories[i].name, result)
+                        continue
+
+                    repo_name, completion_time, summary, repo_data = result
+
+                    if completion_time:
+                        run_key = _get_run_key(self.config_path, repo_name)
+                        last_run_updates[run_key] = completion_time
+
+                    # Add successful summary to cache
+                    if summary and self.config.rss:
+                        summary_id = f"{repo_name}-{completion_time.isoformat()}"
+                        repo_link = f"https://github.com/{repo_name}"
+
+                        cache_entry = {
+                            "id": summary_id,
+                            "title": f"Summary for {repo_name}",
+                            "content": summary,
+                            "link": repo_link,
+                            "timestamp": completion_time.isoformat(),
+                        }
+                        await add_summary_to_cache(cache_entry)
+
+                # Log rate limit info
+                if github_service.rate_limit:
+                    logger.info(
+                        "Final rate limit: %d/%d remaining",
+                        github_service.rate_limit.remaining,
+                        github_service.rate_limit.limit,
+                    )
+
+                # Regenerate RSS feed from the cache
+                if self.config.rss:
+                    all_summaries = await load_summaries()
+                    if all_summaries:
+                        generate_feed_from_summaries(self.config.rss, self.config.output_dir, all_summaries)
+
+                # Batch update last run times (async)
+                if last_run_updates:
+                    await set_multiple_last_run_times(last_run_updates)
+                    logger.info("Updated last run times for %d repositories", len(last_run_updates))
 
                 logger.info("Processing completed for %d repositories", len(repositories))
 

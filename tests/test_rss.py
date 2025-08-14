@@ -1,90 +1,113 @@
+import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from github_summary.models import RssConfig
-from github_summary.rss import RSSFeedManager, add_entry_to_feed
+from github_summary.rss import generate_feed_from_summaries
 
 
-@pytest.mark.unit
-def test_rss_context_manager(tmp_path):
-    """Test RSS context manager"""
-    rss_config = RssConfig(title="Context Test", filename="context_test.xml")
-    output_dir = tmp_path / "output"
-
-    with RSSFeedManager(rss_config, str(output_dir)) as feed:
-        # Add an entry to test the feed works
-        add_entry_to_feed(feed, "Test summary", "owner/repo")
-
-    # After context exits, file should be saved
-    rss_file = output_dir / "context_test.xml"
-    assert rss_file.exists()
-    with open(rss_file) as f:
-        content = f.read()
-        assert "Context Test" in content
-        assert "Summary for owner/repo" in content
-
-
-@pytest.mark.unit
-def test_create_rss_feed(tmp_path):
-    """Test RSS feed creation via RSSFeedManager"""
-    rss_config = RssConfig(
-        title="Test Feed",
+@pytest.fixture
+def rss_config():
+    """Return a sample RssConfig object."""
+    return RssConfig(
+        title="Test RSS Feed",
         link="http://example.com/rss",
-        description="Test feed description",
-        filename="test.xml",
+        description="A test feed for summaries.",
+        filename="test_feed.xml",
     )
 
-    with RSSFeedManager(rss_config, str(tmp_path)) as feed:
-        assert feed.title() == "Test Feed"
-        assert feed.link() == [{"href": "http://example.com/rss", "rel": "alternate"}]
-        assert feed.description() == "Test feed description"
+
+@pytest.fixture
+def summaries_data():
+    """Return a list of sample summary dictionaries."""
+    return [
+        {
+            "id": "test/repo-1",
+            "title": "Summary for test/repo-1",
+            "content": "# Summary 1\n- Point 1",
+            "link": "http://example.com/repo-1",
+            "timestamp": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
+        },
+        {
+            "id": "test/repo-2",
+            "title": "Summary for test/repo-2",
+            "content": "Summary 2",
+            "link": "http://example.com/repo-2",
+            "timestamp": datetime.now(UTC).isoformat(),  # Newest
+        },
+    ]
 
 
 @pytest.mark.unit
-def test_add_entry_to_feed(tmp_path):
-    """Test adding entries to RSS feed via RSSFeedManager"""
-    rss_config = RssConfig()
+def test_generate_feed(rss_config, summaries_data, tmp_path):
+    """Test that a basic RSS feed is generated correctly."""
+    output_dir = str(tmp_path)
+    generate_feed_from_summaries(rss_config, output_dir, summaries_data)
 
-    with RSSFeedManager(rss_config, str(tmp_path)) as feed:
-        add_entry_to_feed(feed, "Test summary", "owner/repo")
-        assert len(feed.entry()) == 1
-        entry = feed.entry()[0]
-        assert entry.title() == "Summary for owner/repo"
-        assert entry.description() == "Test summary"
-
-
-@pytest.mark.unit
-def test_add_entry_to_feed_with_markdown(tmp_path):
-    """Test adding markdown entries to RSS feed via RSSFeedManager"""
-    rss_config = RssConfig()
-
-    with RSSFeedManager(rss_config, str(tmp_path)) as feed:
-        markdown_summary = """# Heading
-
-- Item 1
-- Item 2"""
-        add_entry_to_feed(feed, markdown_summary, "owner/repo")
-        assert len(feed.entry()) == 1
-        entry = feed.entry()[0]
-        assert entry.title() == "Summary for owner/repo"
-        assert entry.description() == markdown_summary
-        # Content should be rendered HTML
-        content = entry.content()["content"]
-        assert "<h1>Heading</h1>" in content
-        assert "<li>Item 1</li>" in content
-
-
-@pytest.mark.unit
-def test_save_rss_feed(tmp_path):
-    """Test RSS feed saving via RSSFeedManager"""
-    rss_config = RssConfig(title="Save Test", filename="test.xml")
-
-    with RSSFeedManager(rss_config, str(tmp_path)) as feed:
-        add_entry_to_feed(feed, "Save test content", "save/repo")
-
-    # File should be automatically saved on context exit
-    rss_file = tmp_path / "test.xml"
+    rss_file = tmp_path / rss_config.filename
     assert rss_file.exists()
-    with open(rss_file) as f:
+
+    # Parse the XML to verify its contents
+    tree = ET.parse(str(rss_file))
+    root = tree.getroot()
+    channel = root.find("channel")
+
+    assert channel is not None
+    assert channel.find("title").text == rss_config.title
+    assert channel.find("link").text == rss_config.link
+    assert channel.find("description").text == rss_config.description
+
+    items = channel.findall("item")
+    assert len(items) == 2
+
+
+@pytest.mark.unit
+def test_feed_sorting(rss_config, summaries_data, tmp_path):
+    """Test that entries in the feed are sorted by timestamp."""
+    output_dir = str(tmp_path)
+    generate_feed_from_summaries(rss_config, output_dir, summaries_data)
+
+    rss_file = tmp_path / rss_config.filename
+    tree = ET.parse(str(rss_file))
+    root = tree.getroot()
+    channel = root.find("channel")
+    items = channel.findall("item")
+
+    # The newest item should be first
+    assert items[0].find("title").text == "Summary for test/repo-2"
+    assert items[1].find("title").text == "Summary for test/repo-1"
+
+
+@pytest.mark.unit
+def test_markdown_rendering(rss_config, summaries_data, tmp_path):
+    """Test that markdown in the summary content is rendered to HTML."""
+    output_dir = str(tmp_path)
+    generate_feed_from_summaries(rss_config, output_dir, summaries_data)
+
+    rss_file = tmp_path / rss_config.filename
+    assert rss_file.exists()
+
+    # Read the file as plain text and check for rendered HTML content
+    with open(rss_file, "r") as f:
         content = f.read()
-        assert "Save Test" in content
-        assert "save/repo" in content
+
+    assert "<h1>Summary 1</h1>" in content
+    assert "<li>Point 1</li>" in content
+
+
+@pytest.mark.unit
+def test_generate_feed_empty_summaries(rss_config, tmp_path):
+    """Test that an empty feed is generated if there are no summaries."""
+    output_dir = str(tmp_path)
+    generate_feed_from_summaries(rss_config, output_dir, [])
+
+    rss_file = tmp_path / rss_config.filename
+    assert rss_file.exists()
+
+    tree = ET.parse(str(rss_file))
+    root = tree.getroot()
+    channel = root.find("channel")
+    items = channel.findall("item")
+
+    assert len(items) == 0

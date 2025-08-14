@@ -8,7 +8,7 @@ from typing import Dict
 
 logger = logging.getLogger(__name__)
 
-LAST_RUN_TIMES_FILE = Path("log/last_run_times.json")
+LAST_RUN_TIMES_FILE = Path("cache/last_run_times.json")
 
 # Async lock for write operations
 _async_lock = asyncio.Lock()
