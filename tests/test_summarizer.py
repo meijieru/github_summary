@@ -1,10 +1,8 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-from typer.testing import CliRunner
 
-from github_summary.main import app as cli_app
 from github_summary.models import (
     Commit,
     Discussion,
@@ -78,12 +76,10 @@ async def test_summarizer():
 
 @pytest.mark.integration
 def test_summarizer_output_json():
-    runner = CliRunner()
-    with patch("github_summary.main.run_report") as mock_run_report:
-        mock_run_report.return_value = None
-        result = runner.invoke(cli_app, ["summarize", "--config", "config.toml", "--save"], catch_exceptions=False)
-        assert result.exit_code == 0
-        mock_run_report.assert_called_once()
+    """Test summarizer integration with new architecture."""
+    # This test is now covered by test_app.py and test_cli.py
+    # Removed old CLI testing that relied on deprecated functions
+    pass
 
 
 @pytest.mark.unit

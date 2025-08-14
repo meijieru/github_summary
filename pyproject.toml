@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
-github-summary = "github_summary.main:main"
+ghsum = "github_summary.cli:main"
 
 [tool.setuptools]
 packages = ["github_summary"]

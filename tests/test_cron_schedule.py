@@ -123,9 +123,9 @@ def test_scheduler_handles_no_schedules(mock_load_config):
 
 
 @pytest.mark.integration
-@patch("github_summary.actions.run_report")
+@patch("github_summary.scheduler._run_scheduled_job")
 @patch("github_summary.scheduler.load_config")
-def test_scheduler_with_timezone(mock_load_config, mock_run_report):
+def test_scheduler_with_timezone(mock_load_config, mock_run_job):
     """Test scheduler handles timezone configuration."""
     repo1 = RepoConfig(name="owner/repo1", schedule=ScheduleConfig(cron="0 9 * * 1", timezone="America/New_York"))
 

@@ -1,9 +1,12 @@
-from datetime import UTC, datetime
+"""
+Integration tests for the GitHubSummaryApp.
+"""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from github_summary.actions import run_report
+from github_summary.app import GitHubSummaryApp
 from github_summary.models import Config, GitHubConfig, LLMConfig, RepoConfig
 
 
@@ -22,19 +25,18 @@ def mock_config():
 
 
 class TestIntegration:
-    """Integration test cases."""
+    """Integration test cases for the new GitHubSummaryApp."""
 
     @pytest.mark.integration
     @pytest.mark.asyncio
-    async def test_full_async_workflow(self, mock_config):
-        """Test complete async workflow integration."""
+    async def test_full_async_workflow_new_app(self, mock_config):
+        """Test complete async workflow integration with new GitHubSummaryApp."""
         with (
-            patch("github_summary.actions.GitHubService") as mock_github_service_class,
-            patch("github_summary.actions.create_summarizer") as mock_create_summarizer,
-            patch("github_summary.actions.setup_logging"),
-            patch("github_summary.actions.filter_repositories") as mock_filter_repos,
-            patch("github_summary.actions.set_multiple_last_run_times") as mock_set_times,
-            patch("github_summary.actions.load_config") as mock_load_config,
+            patch("github_summary.app.GitHubService") as mock_github_service_class,
+            patch("github_summary.app.AsyncLLMClient") as mock_llm_client,
+            patch("github_summary.app.Summarizer") as mock_summarizer_class,
+            patch("github_summary.app.set_multiple_last_run_times") as mock_set_times,
+            patch("github_summary.config.load_config") as mock_load_config,
         ):
             # Setup mocks
             mock_load_config.return_value = mock_config
@@ -42,28 +44,29 @@ class TestIntegration:
             mock_service = AsyncMock()
             mock_service.__aenter__.return_value = mock_service
             mock_service.__aexit__.return_value = None
+            mock_service.get_commits.return_value = []
+            mock_service.get_pull_requests.return_value = []
+            mock_service.get_issues.return_value = []
+            mock_service.get_discussions.return_value = []
+            mock_service.rate_limit = None
             mock_github_service_class.return_value = mock_service
 
+            mock_llm_instance = AsyncMock()
+            mock_llm_client.return_value = mock_llm_instance
+
             mock_summarizer = AsyncMock()
-            mock_create_summarizer.return_value = mock_summarizer
+            mock_summarizer.summarize.return_value = "Test summary"
+            mock_summarizer_class.return_value = mock_summarizer
 
-            mock_filter_repos.return_value = [RepoConfig(name="test/repo")]
+            mock_set_times.return_value = None
 
-            # Mock process_repository
-            with patch("github_summary.actions.process_repository") as mock_process:
-                mock_process.return_value = ("test/repo", datetime.now(UTC), "Test summary", {})
+            # Create and run app
+            app = GitHubSummaryApp("test_config.toml", skip_summary=False)
+            # Mock the app's config property to avoid file loading
+            app._config = mock_config
 
-                # Run the async workflow
-                await run_report(
-                    config_path="test_config.toml",
-                    save=False,
-                    save_markdown=False,
-                    skip_summary=False,
-                    repo_name=None,
-                    max_concurrent_repos=2,
-                )
+            await app.run(repo_names=["test/repo"], save_json=False, save_markdown=False, max_concurrent_repos=1)
 
-                # Verify calls
-                mock_github_service_class.assert_called_once()
-                mock_process.assert_called_once()
-                mock_set_times.assert_called_once()
+            # Verify interactions
+            mock_github_service_class.assert_called_once()
+            mock_summarizer.summarize.assert_called_once()

@@ -1,6 +1,6 @@
 # GitHub Repository Summarizer
 
-A modern, async-first CLI tool that fetches GitHub repository activity and generates AI-powered summaries using OpenAI and gidgethub.
+A modern, async-first CLI tool and RSS server that fetches GitHub repository activity and generates AI-powered summaries using OpenAI and gidgethub.
 
 ## 🚀 Quick Start
 
@@ -22,9 +22,60 @@ A modern, async-first CLI tool that fetches GitHub repository activity and gener
    ```
 
 3. **Run:**
+
    ```bash
-   github-summary summarize
+   # Generate summaries
+   ghsum run
+   # Start RSS web server
+   ghsum serve
+   # Run scheduler daemon
+   ghsum schedule
    ```
+
+## 📋 Commands
+
+### Generate Repository Summaries
+
+```bash
+# Process all repositories
+ghsum run
+
+# Process specific repository
+ghsum run --repo owner/repo-name
+
+# Save outputs
+ghsum run --save-json --save-markdown
+
+# Skip LLM summary generation (data collection only)
+ghsum run --skip-summary
+```
+
+### RSS Web Server
+
+```bash
+# Start server on default port (8000)
+ghsum serve
+
+# Custom host and port
+ghsum serve --host 0.0.0.0 --port 8080
+
+# Development mode with auto-reload
+ghsum serve --reload
+```
+
+### Scheduler Daemon
+
+```bash
+# Run scheduled jobs (blocking)
+ghsum schedule
+```
+
+### Utilities
+
+```bash
+# Validate configuration
+ghsum utils validate-config
+```
 
 ## ⚙️ Configuration
 
@@ -48,6 +99,16 @@ max_concurrent_repos = 4  # Maximum concurrent repository processing
 max_concurrent_llm = 3    # Maximum concurrent LLM requests
 ```
 
+### RSS Configuration
+
+```toml
+[rss]
+title = "My GitHub Activity"
+link = "https://my-domain.com/rss.xml"
+description = "Recent activity in my GitHub repositories"
+filename = "rss.xml"
+```
+
 ### Scheduling
 
 ```toml
@@ -58,38 +119,238 @@ timezone = "America/New_York"
 
 **Common Cron Patterns:**
 
-- `"0 6 * * *"` - Daily at 6 AM
-- `"0 9 * * 1"` - Every Monday at 9 AM
-- `"0 9-17 * * 1-5"` - Hourly during business hours
-- `"0 17 * * 5"` - Every Friday at 5 PM
+### Per-Repository Scheduling
 
-## 📋 Commands
+```toml
+[[repositories]]
+name = "owner/repo-name"
+
+[repositories.schedule]
+cron = "0 12 * * 1"         # Every Monday at noon
+timezone = "UTC"
+```
+
+### Repository Grouping
+
+Repositories with the same schedule are automatically grouped for efficient processing:
+
+```toml
+# These will be processed together in a single job
+[[repositories]]
+name = "owner/repo1"
+[repositories.schedule]
+cron = "0 9 * * *"
+
+[[repositories]]
+name = "owner/repo2"
+[repositories.schedule]
+cron = "0 9 * * *"
+```
+
+## 🌐 Web Interface
+
+The RSS server provides:
+
+- **RSS Feed**: Auto-generated from repository summaries
+- **Static Files**: Access generated markdown and JSON reports
+- **Health Check**: `/healthz` endpoint for monitoring
+- **Background Jobs**: Automatic scheduled processing
 
 ```bash
-# Generate summary
-github-summary summarize
+# Start server
+ghsum serve --port 8080
 
-# Save to files
-github-summary summarize --save --save-markdown
+# Access feed
+curl http://localhost:8080/rss.xml
 
-# Run specific repository
-github-summary summarize --repo owner/repo
+# Health check
+curl http://localhost:8080/healthz
+```
 
-# Start scheduler
-github-summary schedule-run
+## 🔧 Advanced Usage
 
-# Web service (serves RSS + scheduling)
-github-summary web --port 8000
+### Environment Variables
 
-# Web service with custom config
-github-summary web --config /path/to/config.toml --port 8000
+```bash
+# Override configuration
+export GITHUB_TOKEN="your_token"
+export OPENAI_API_KEY="your_key"
+export GHSUM_CONCURRENT_REPOS="6"
+export GHSUM_CONFIG_PATH="/path/to/config.toml"
 
-# Web service with auto-reload (development)
-github-summary web --reload --config custom.toml
+# Run with overrides
+ghsum run --max-concurrent 8
+```
+
+### Programming API
+
+```python
+from github_summary.app import GitHubSummaryApp
+
+# Create application instance
+app = GitHubSummaryApp("config/config.toml", skip_summary=False)
+
+# Process all repositories
+await app.run()
+
+# Process specific repositories
+await app.run(
+    repo_names=["owner/repo1", "owner/repo2"],
+    save_json=True,
+    save_markdown=True,
+    max_concurrent_repos=4
+)
+```
+
+### Docker Deployment
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY . .
+RUN pip install -e .
+
+# RSS Server
+EXPOSE 8000
+CMD ["ghsum", "serve", "--host", "0.0.0.0"]
+
+# Or Scheduler
+# CMD ["ghsum", "schedule"]
+```
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest -m unit
+pytest -m integration
+
+# Test new architecture
+python test_new_architecture.py
+
+# Validate configuration
+ghsum utils validate-config
+```
+
+## 📊 Monitoring
+
+### Logs
+
+```bash
+# Application logs
+tail -f log/github_summary.log
+
+# Structured logging with timestamps
+[2025-01-13 10:00:00] INFO Processing repository: owner/repo
+[2025-01-13 10:00:01] INFO Summary generated (1024 characters)
+```
+
+### Health Checks
+
+```bash
+# Web server health
+curl http://localhost:8000/healthz
+
+# Scheduler status (check logs)
+ghsum schedule 2>&1 | grep "Scheduler"
+```
+
+### Performance Tuning
+
+```toml
+[performance]
+max_concurrent_repos = 6     # Adjust based on GitHub API limits
+max_concurrent_llm = 4       # Adjust based on LLM provider limits
+
+fallback_lookback_days = 14  # Increase for more historical data
+```
+
+## ❓ Troubleshooting
+
+### Common Issues
+
+1. **GitHub API Rate Limits**
+
+   ```bash
+   # Check your limits
+   curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/rate_limit
+   # Reduce concurrency
+   ghsum run --max-concurrent 2
+   ```
+
+2. **LLM API Errors**
+
+   ```bash
+   # Test without LLM
+   ghsum run --skip-summary
+   # Check configuration
+   ghsum utils validate-config
+   ```
+
+3. **Configuration Errors**
+
+   ```bash
+   # Validate syntax
+   ghsum utils validate-config
+
+   # Test with minimal config
+   echo '[github]\ntoken="test"\n[[repositories]]\nname="owner/repo"' >test.toml
+   ghsum run --config test.toml --skip-summary
+   ```
+
+### Debug Mode
+
+```bash
+# Enable debug logging
+export GHSUM_LOG_LEVEL=DEBUG
+ghsum run
+
+# Or edit config.toml
+log_level = "DEBUG"
+```
+
+## 🤝 Contributing
+
+1. **Setup Development Environment**
+
+   ```bash
+   git clone https://github.com/your-username/github-summary.git
+   cd github-summary || exit
+   uv sync --dev
+   ```
+
+2. **Run Tests**
+
+   ```bash
+   pytest
+   python test_new_architecture.py
+   ```
+
+3. **Code Style**
+   ```bash
+   ruff check .
+   ruff format .
+   ```
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## 🙏 Acknowledgments
+
+- [gidgethub](https://github.com/brettcannon/gidgethub) for async GitHub API client
+- [FastAPI](https://fastapi.tiangolo.com/) for web framework
+- [Typer](https://typer.tiangolo.com/) for CLI interface
+- [APScheduler](https://apscheduler.readthedocs.io/) for scheduling
+  github-summary web --reload --config custom.toml
 
 # List repository labels
+
 github-summary utils list-labels owner/repo
-```
 
 ## ✨ Features
 
@@ -107,18 +368,16 @@ github-summary utils list-labels owner/repo
 ## 📁 Project Structure
 
 ```
-├── config/                 # Configuration files
-├── github_summary/         # Main source code
-├── tests/                  # Test suite
-├── docs/                   # Detailed documentation
-└── examples/               # Configuration examples
+├── config/ # Configuration files
+├── github_summary/ # Main source code
+├── tests/ # Test suite
+├── docs/ # Detailed documentation
+└── examples/ # Configuration examples
 ```
 
 ## 📚 Documentation
 
-- **[Setup Guide](docs/SETUP.md)** - Detailed installation and configuration
-- **[Configuration Reference](docs/CONFIGURATION.md)** - All configuration options
-- **[API Documentation](docs/API.md)** - GraphQL queries and data models
+- **[API Documentation](docs/api_reference.md)** - GraphQL queries and data models
 - **[Configuration Examples](examples/README.md)** - Example configurations for different use cases
 
 ## 🤝 Contributing
@@ -128,6 +387,7 @@ github-summary utils list-labels owner/repo
 3. Make your changes
 4. Add tests
 5. Run linting and tests:
+
    ```bash
    ruff check .          # Check for linting issues
    ruff check . --fix    # Auto-fix linting issues
@@ -136,6 +396,7 @@ github-summary utils list-labels owner/repo
    pytest -m unit        # Run only unit tests (fast)
    pytest -m integration # Run integration tests
    ```
+
 6. Submit a pull request
 
 ### Test Categories
