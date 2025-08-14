@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.0.0](https://github.com/meijieru/github_summary/compare/v1.0.0...v2.0.0) (2025-08-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **app:** unify async core into GitHubSummaryApp, modernize CLI, and update docs/tests
+
+### Features
+
+* **github_client:** add data_type and repo_name to GraphQL fetch for improved logging ([5788cf0](https://github.com/meijieru/github_summary/commit/5788cf02fcf00b4f52aa4b8553a278712be88a01))
+
+
+### Bug Fixes
+
+* **rss:** add summary cache and refactor RSS feed generation ([f385100](https://github.com/meijieru/github_summary/commit/f3851005b979f90a9548649aefcb5d3ecbc1b399))
+
+
+### Code Refactoring
+
+* **app:** unify async core into GitHubSummaryApp, modernize CLI, and update docs/tests ([4543870](https://github.com/meijieru/github_summary/commit/4543870016cd92104c330a5e2ca62bdde493ed2e))
+
 ## [1.0.0](https://github.com/meijieru/github_summary/compare/v0.2.0...v1.0.0) (2025-08-13)
 
 
