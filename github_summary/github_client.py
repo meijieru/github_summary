@@ -72,6 +72,8 @@ class GitHubService:
             GET_COMMITS_QUERY,
             variables,
             lambda data: data["repository"]["defaultBranchRef"]["target"]["history"],
+            data_type="commits",
+            repo_name=repo.name,
         )
 
         # Keep our exact same filtering and model conversion logic
@@ -115,6 +117,8 @@ class GitHubService:
             GET_PULL_REQUESTS_QUERY,
             variables,
             lambda data: data["repository"]["pullRequests"],
+            data_type="pull_requests",
+            repo_name=repo.name,
         )
 
         filtered_pull_requests = []
@@ -179,6 +183,8 @@ class GitHubService:
             GET_ISSUES_QUERY,
             variables,
             lambda data: data["search"],
+            data_type="issues",
+            repo_name=repo.name,
         )
 
         filtered_issues = []
@@ -233,6 +239,8 @@ class GitHubService:
             GET_DISCUSSIONS_QUERY,
             variables,
             lambda data: data["repository"]["discussions"],
+            data_type="discussions",
+            repo_name=repo.name,
         )
 
         filtered_discussions = []
@@ -268,6 +276,8 @@ class GitHubService:
             GET_ALL_LABELS_QUERY,
             variables,
             lambda data: data["repository"]["labels"],
+            data_type="labels",
+            repo_name=f"{owner}/{repo_name}",
         )
         return [label["name"] for label in labels_data]
 
@@ -276,6 +286,8 @@ class GitHubService:
         query: str,
         variables: dict[str, Any],
         data_extractor: Callable[[dict[str, Any]], dict[str, Any]],
+        data_type: str,
+        repo_name: str,
         max_pages: int = 5,
     ) -> list[dict[str, Any]]:
         """
@@ -285,6 +297,8 @@ class GitHubService:
             query: GraphQL query string
             variables: Query variables
             data_extractor: Function to extract data from GraphQL response
+            data_type: Type of data being fetched (commits, issues, etc.)
+            repo_name: Repository name for logging
             max_pages: Maximum pages to fetch
 
         Returns:
@@ -299,24 +313,13 @@ class GitHubService:
         while has_next_page and i < max_pages:
             variables.update({"cursor": cursor})
 
-            logger.debug("Making GraphQL request (page %d): %s", i + 1, query[:100] + "...")
-
             # Use gidgethub for the request (gets automatic rate limiting, retries, caching)
             try:
                 assert self.gh_client is not None, "GitHub client not initialized"
                 result = await self.gh_client.graphql(query, **variables)
             except Exception as e:
-                logger.error("GraphQL request failed: %s", e)
+                logger.error("Failed to fetch %s for %s: %s", data_type, repo_name, e)
                 raise
-
-            # Log rate limit info if available
-            if self.rate_limit:
-                logger.debug(
-                    "Rate limit: %d/%d remaining, resets at %s",
-                    self.rate_limit.remaining,
-                    self.rate_limit.limit,
-                    self.rate_limit.reset_datetime,
-                )
 
             page_data = data_extractor(result)
             all_nodes.extend(page_data["nodes"])
@@ -325,7 +328,9 @@ class GitHubService:
             i += 1
 
         if has_next_page and i >= max_pages:
-            logger.warning("Reached maximum page limit (%d). Some data may be missing.", max_pages)
+            logger.warning(
+                "Reached max pages (%d) for %s in %s - some data may be missing", max_pages, data_type, repo_name
+            )
 
-        logger.info("Fetched %d total items across %d pages", len(all_nodes), i)
+        logger.debug("Fetched %d %s from %s (%d pages)", len(all_nodes), data_type, repo_name, i)
         return all_nodes
