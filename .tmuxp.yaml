@@ -18,4 +18,4 @@ windows:
       main-pane-height: 35
     panes:
       - shell_command:
-          - uv run github-summary web
+          - uv run ghsum serve
