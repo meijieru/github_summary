@@ -105,7 +105,7 @@ class Summarizer:
             A string containing the generated summary.
         """
         # If there's no actual data, return a standard message
-        if not any(info.get(key) for key in ["commits", "pull_requests", "issues", "discussions"]):
+        if not any(info.get(key) for key in ["commits", "pull_requests", "issues", "discussions", "releases"]):
             logger.info("No new data to summarize.")
             return "No new updates."
 

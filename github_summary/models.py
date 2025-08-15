@@ -40,6 +40,13 @@ class DiscussionFilterConfig(BaseModel):
     exclude_discussion_titles_regex: str | None = None
 
 
+class ReleaseFilterConfig(BaseModel):
+    """Configuration for filtering releases."""
+
+    author: str | None = None
+    exclude_release_names_regex: str | None = None
+
+
 # Filters that can be applied globally or per-repo
 class FilterConfig(BaseModel):
     """Aggregates all filter configurations."""
@@ -48,6 +55,7 @@ class FilterConfig(BaseModel):
     pull_requests: PullRequestFilterConfig = Field(default_factory=PullRequestFilterConfig)
     issues: IssueFilterConfig = Field(default_factory=IssueFilterConfig)
     discussions: DiscussionFilterConfig = Field(default_factory=DiscussionFilterConfig)
+    releases: ReleaseFilterConfig = Field(default_factory=ReleaseFilterConfig)
 
     def merge_with(self, other: FilterConfig) -> FilterConfig:
         """Merges this FilterConfig with another, prioritizing values from the 'other' config.
@@ -62,6 +70,7 @@ class FilterConfig(BaseModel):
         self.pull_requests = self.pull_requests.model_copy(update=other.pull_requests.model_dump(exclude_none=True))
         self.issues = self.issues.model_copy(update=other.issues.model_dump(exclude_none=True))
         self.discussions = self.discussions.model_copy(update=other.discussions.model_dump(exclude_none=True))
+        self.releases = self.releases.model_copy(update=other.releases.model_dump(exclude_none=True))
         return self
 
 
@@ -75,7 +84,20 @@ class RepoConfig(BaseModel):
     include_pull_requests: bool = True
     include_issues: bool = True
     include_discussions: bool = True
+    include_releases: bool = False
+    release_only: bool = False
     schedule: ScheduleConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_release_only(self) -> RepoConfig:
+        """Ensures that if release_only is True, all other include flags are False."""
+        if self.release_only:
+            self.include_commits = False
+            self.include_pull_requests = False
+            self.include_issues = False
+            self.include_discussions = False
+            self.include_releases = True
+        return self
 
 
 # Main configuration model
@@ -95,8 +117,9 @@ Your goal is to generate a two-part summary: a detailed analysis of completed wo
 
 ### **Part 1: In-Depth Technical Summary**
 
-Analyze recent **merged** pull requests, **closed** issues, and direct **commits** to create a concise, impact-focused briefing. Your analysis must prioritize the following topics in order:
+Analyze recent **releases**, **merged** pull requests, **closed** issues, and direct **commits** to create a concise, impact-focused briefing. Your analysis must prioritize the following topics in order:
 
+* **🚀 Official Releases:** List any new version releases. Include the release name, tag, and a summary of the key changes.
 * **✨ New Features & Capabilities:** Detail significant, user-facing additions or major new functionalities. Explain *what* the new feature is and its intended benefit.
 * **🐛 Critical Bug Fixes:** Focus only on fixes for high-impact bugs, such as those causing crashes, data corruption, security vulnerabilities, or significant functional failures. Describe the problem that was solved.
 * **⚠️ Breaking Changes & Deprecations:** Explicitly call out any changes to the API, configuration, or behavior that are not backward-compatible. List any functions, endpoints, or features that have been deprecated.
@@ -129,6 +152,7 @@ Present the final output in a structured Markdown format, linking directly to th
 
 You will receive the following information:
 * `repo`: The name of the repository (e.g., "owner/repo-name").
+* `releases`: A list of recent releases, including their names, tags, and URLs.
 * `commits`: A list of recent commits, including those made directly to the main branch.
 * `pull_requests`: A list of recent pull requests, including their titles, authors, states (open/closed/merged), and URLs. Use this for both Part 1 (merged) and Part 2 (open).
 * `issues`: A list of recent issues, including their titles, authors, states (open/closed), and URLs.
@@ -238,3 +262,15 @@ class Discussion(BaseModel):
     created_at: str
     html_url: str
     labels: list[str] = Field(default_factory=list)
+
+
+class Release(BaseModel):
+    """Represents a GitHub release."""
+
+    id: str
+    name: str
+    tag_name: str
+    body: str
+    author: str
+    created_at: str
+    html_url: str

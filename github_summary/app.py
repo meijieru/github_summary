@@ -190,6 +190,8 @@ class GitHubSummaryApp:
             tasks["issues"] = github_service.get_issues(repo, filters, since)
         if repo.include_discussions:
             tasks["discussions"] = github_service.get_discussions(repo, filters, since)
+        if repo.include_releases:
+            tasks["releases"] = github_service.get_releases(repo, filters, since)
 
         # Execute enabled fetches concurrently
         if tasks:
@@ -210,6 +212,7 @@ class GitHubSummaryApp:
         pull_requests = data_results.get("pull_requests", [])
         issues = data_results.get("issues", [])
         discussions = data_results.get("discussions", [])
+        releases = data_results.get("releases", [])
 
         return {
             "repo": repo.name,
@@ -217,6 +220,7 @@ class GitHubSummaryApp:
             "pull_requests": [pr.model_dump() for pr in pull_requests],
             "issues": [i.model_dump() for i in issues],
             "discussions": [d.model_dump() for d in discussions],
+            "releases": [r.model_dump() for r in releases],
         }
 
     async def _calculate_since_time_for_repo(self, repo_name: str) -> datetime:

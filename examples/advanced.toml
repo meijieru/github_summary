@@ -25,6 +25,8 @@ exclude_pull_request_titles_regex = "^(docs|test|build|chore|ci):"
 since_filter_type = "updated"
 [filters.issues]
 exclude_issue_titles_regex = "^(docs|test):"
+[filters.releases]
+exclude_release_names_regex = "-alpha$"
 
 # RSS feed generation
 [rss]

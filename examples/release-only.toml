@@ -1,0 +1,20 @@
+# Release-Only Configuration Example
+# ====================================
+
+# This example demonstrates how to configure the tool to fetch and summarize
+# only the releases for a specific repository.
+
+[github]
+token = "your_github_token_here"
+
+[llm]
+api_key = "your_openai_api_key"
+model_name = "gpt-4"
+
+[[repositories]]
+name = "owner/repo"
+release_only = true
+
+# You can still apply filters to the releases
+[repositories.filters.releases]
+exclude_release_names_regex = "-beta$"

@@ -9,13 +9,14 @@ from typing import Any
 import httpx
 from gidgethub.httpx import GitHubAPI
 
-from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, RepoConfig
+from github_summary.models import Commit, Discussion, FilterConfig, Issue, PullRequest, Release, RepoConfig
 from github_summary.queries import (
     GET_ALL_LABELS_QUERY,
     GET_COMMITS_QUERY,
     GET_DISCUSSIONS_QUERY,
     GET_ISSUES_QUERY,
     GET_PULL_REQUESTS_QUERY,
+    GET_RELEASES_QUERY,
 )
 
 logger = logging.getLogger(__name__)
@@ -268,6 +269,52 @@ class GitHubService:
                 )
             )
         return filtered_discussions
+
+    async def get_releases(self, repo: RepoConfig, filters: FilterConfig, since: datetime) -> list[Release]:
+        """Fetch releases with our exact same API and business logic."""
+        if not repo.include_releases:
+            return []
+
+        owner, repo_name = repo.name.split("/")
+        variables: dict[str, Any] = {"owner": owner, "repo": repo_name}
+
+        releases_data = await self._paginate_graphql(
+            GET_RELEASES_QUERY,
+            variables,
+            lambda data: data["repository"]["releases"],
+            data_type="releases",
+            repo_name=repo.name,
+        )
+
+        filtered_releases = []
+        for item in releases_data:
+            if not item.get("publishedAt"):
+                continue
+            release_date = datetime.fromisoformat(item["publishedAt"]).astimezone(UTC)
+            if release_date < since:
+                continue
+            if filters.releases:
+                if filters.releases.author and item["author"] and item["author"]["login"] != filters.releases.author:
+                    continue
+                if (
+                    filters.releases.exclude_release_names_regex
+                    and item["name"]
+                    and re.search(filters.releases.exclude_release_names_regex, item["name"])
+                ):
+                    continue
+
+            filtered_releases.append(
+                Release(
+                    id=item["id"],
+                    name=item["name"],
+                    tag_name=item["tagName"],
+                    body=item["description"],
+                    author=item["author"]["login"] if item["author"] else "Unknown",
+                    created_at=item["publishedAt"],
+                    html_url=item["url"],
+                )
+            )
+        return filtered_releases
 
     async def get_all_labels(self, owner: str, repo_name: str) -> list[str]:
         """Fetch all repository labels."""

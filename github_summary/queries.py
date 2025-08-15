@@ -135,3 +135,27 @@ query GetRepositoryLabels($owner: String!, $name: String!, $cursor: String) {
     }
 }
 """
+
+GET_RELEASES_QUERY = """
+query($owner: String!, $repo: String!, $cursor: String) {
+    repository(owner: $owner, name: $repo) {
+        releases(first: 100, after: $cursor, orderBy: {field: CREATED_AT, direction: DESC}) {
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+            nodes {
+                id
+                name
+                tagName
+                description
+                publishedAt
+                url
+                author {
+                    login
+                }
+            }
+        }
+    }
+}
+"""

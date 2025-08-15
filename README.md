@@ -122,13 +122,36 @@ timezone = "America/New_York"
 ### Per-Repository Scheduling
 
 ```toml
-[[repositories]]
-name = "owner/repo-name"
-
 [repositories.schedule]
 cron = "0 12 * * 1"         # Every Monday at noon
 timezone = "UTC"
 ```
+
+### Release Tracking
+
+Enable or disable release tracking for a repository:
+
+```toml
+[[repositories]]
+name = "owner/repo-name"
+include_releases = true
+
+# Only fetch releases for this repository
+[[repositories]]
+name = "owner/another-repo"
+release_only = true
+```
+
+### Filtering Releases
+
+```toml
+[filters.releases]
+exclude_release_names_regex = "-alpha|-beta"
+```
+
+### Repository Grouping
+
+Repositories with the same schedule are automatically grouped for efficient processing:
 
 ### Repository Grouping
 
@@ -355,7 +378,7 @@ github-summary utils list-labels owner/repo
 ## ✨ Features
 
 - **Async-first architecture**: Built with OpenAI and gidgethub for high performance
-- **Multi-source data**: Commits, PRs, issues, discussions via GitHub GraphQL API
+- **Multi-source data**: Commits, PRs, issues, discussions, and releases via GitHub GraphQL API
 - **AI summaries**: OpenAI and compatible LLM integration with configurable concurrency
 - **Flexible scheduling**: AsyncIOScheduler with cron-based scheduling and timezone support
 - **RSS feeds**: Generate RSS feeds for summaries with markdown support
