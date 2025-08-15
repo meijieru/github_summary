@@ -151,6 +151,7 @@ query($owner: String!, $repo: String!, $cursor: String) {
                 description
                 publishedAt
                 url
+                isPrerelease
                 author {
                     login
                 }

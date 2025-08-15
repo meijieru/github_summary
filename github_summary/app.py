@@ -348,7 +348,7 @@ class GitHubSummaryApp:
             logger.info("Completed processing repository: %s", repo.name)
             return repo.name, completion_time, summary, repo_data
 
-        except Exception as e:
+        except Exception:
             logger.exception("Failed to process repository %s", repo.name)
             # Return empty results but don't crash
             return repo.name, completion_time, "", {}

@@ -34,6 +34,7 @@ def sample_release_response():
                             "publishedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                             "url": "https://github.com/owner/repo/releases/tag/v1.0.0",
                             "author": {"login": "test_author"},
+                            "isPrerelease": False,
                         }
                     ],
                 }
@@ -83,6 +84,7 @@ async def test_github_service_releases_exclude_regex(github_service):
                         "publishedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                         "url": "https://github.com/owner/repo/releases/tag/v1.0.0",
                         "author": {"login": "test_author"},
+                        "isPrerelease": False,
                     },
                     {
                         "id": "2",
@@ -92,6 +94,7 @@ async def test_github_service_releases_exclude_regex(github_service):
                         "publishedAt": (datetime.now(UTC) - timedelta(days=1)).isoformat(),
                         "url": "https://github.com/owner/repo/releases/tag/v1.1.0-alpha",
                         "author": {"login": "test_author"},
+                        "isPrerelease": True,
                     },
                 ],
             }

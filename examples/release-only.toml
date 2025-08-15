@@ -18,3 +18,4 @@ release_only = true
 # You can still apply filters to the releases
 [repositories.filters.releases]
 exclude_release_names_regex = "-beta$"
+exclude_prereleases = false

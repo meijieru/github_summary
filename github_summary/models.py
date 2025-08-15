@@ -45,6 +45,7 @@ class ReleaseFilterConfig(BaseModel):
 
     author: str | None = None
     exclude_release_names_regex: str | None = None
+    exclude_prereleases: bool = True
 
 
 # Filters that can be applied globally or per-repo
@@ -274,3 +275,4 @@ class Release(BaseModel):
     author: str
     created_at: str
     html_url: str
+    is_prerelease: bool

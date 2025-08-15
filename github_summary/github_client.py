@@ -302,6 +302,8 @@ class GitHubService:
                     and re.search(filters.releases.exclude_release_names_regex, item["name"])
                 ):
                     continue
+                if filters.releases.exclude_prereleases and item["isPrerelease"]:
+                    continue
 
             filtered_releases.append(
                 Release(
@@ -312,6 +314,7 @@ class GitHubService:
                     author=item["author"]["login"] if item["author"] else "Unknown",
                     created_at=item["publishedAt"],
                     html_url=item["url"],
+                    is_prerelease=item["isPrerelease"],
                 )
             )
         return filtered_releases
