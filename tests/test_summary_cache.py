@@ -1,10 +1,12 @@
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from github_summary.summary_cache import (
+    SummaryCache,
     add_summaries_to_cache,
     load_summaries,
     save_summaries,
@@ -12,14 +14,15 @@ from github_summary.summary_cache import (
 
 
 @pytest.fixture(autouse=True)
-def clean_cache():
+def isolated_cache(tmp_path):
     """Clean cache before and after each test."""
-    cache_dir = Path("cache")
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir)
-    yield
-    if cache_dir.exists():
-        shutil.rmtree(cache_dir)
+    # Create isolated cache for each test to avoid touching real cache
+    test_cache_dir = tmp_path / "test_cache"
+    test_cache_file = test_cache_dir / "summary_cache.json"
+    test_cache_instance = SummaryCache(cache_file=test_cache_file)
+    
+    with patch("github_summary.summary_cache._cache", test_cache_instance):
+        yield
 
 
 @pytest.fixture
