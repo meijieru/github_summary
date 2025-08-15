@@ -68,6 +68,7 @@ class AsyncLLMClient:
             with attempt:
                 logger.debug("Making LLM API request with model %s", self.model_name)
 
+                # TODO(meijieru): deal with prompt exceeding token limit
                 response = await self.client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
