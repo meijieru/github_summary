@@ -250,6 +250,11 @@ class GitHubSummaryApp:
         if not summarizer:
             return ""
 
+        # If there's no new data, don't generate a summary
+        if not any(repo_data.get(key) for key in ["commits", "pull_requests", "issues", "discussions", "releases"]):
+            logger.info("No new data to summarize for %s.", repo_data.get("repo", "unknown"))
+            return ""
+
         logger.info("Generating summary with LLM for %s", repo_data.get("repo", "unknown"))
         summary = await summarizer.summarize(repo_data, since)
         logger.debug("Generated summary for %s (%d characters)", repo_data.get("repo", "unknown"), len(summary))

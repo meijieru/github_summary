@@ -107,29 +107,3 @@ async def test_summarize_with_data():
 
     assert result == "Generated summary"
     mock_llm_client.generate_summary.assert_called_once()
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_summarize_no_data():
-    """Test summarization with no repository data."""
-    mock_llm_client = AsyncMock()
-
-    summarizer = Summarizer(
-        llm_client=mock_llm_client,
-        system_prompt="Test system prompt",
-    )
-
-    repo_data = {
-        "repo": "test/repo",
-        "commits": [],
-        "pull_requests": [],
-        "issues": [],
-        "discussions": [],
-    }
-
-    since = datetime.now(UTC) - timedelta(days=1)
-    result = await summarizer.summarize(repo_data, since)
-
-    assert result == "No new updates."
-    mock_llm_client.generate_summary.assert_not_called()

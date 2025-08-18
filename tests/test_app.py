@@ -11,6 +11,7 @@ import pytest
 import typer
 
 from github_summary.app import GitHubSummaryApp, create_web_app
+from github_summary.models import Commit
 
 
 @pytest.fixture
@@ -58,6 +59,7 @@ token = "test_token"
 
 [[repositories]]
 name = "test/repo"
+include_commits = true
 
 output_dir = "test_output"
 """
@@ -129,7 +131,9 @@ class TestIntegration:
             mock_gh_instance = AsyncMock()
             mock_gh_service.return_value = mock_gh_instance
             mock_gh_instance.__aenter__.return_value = mock_gh_instance
-            mock_gh_instance.get_commits.return_value = []
+            mock_gh_instance.get_commits.return_value = [
+                Commit(sha="1", author="a", message="m", date="2025-01-01T12:00:00Z", html_url="url")
+            ]
             mock_gh_instance.rate_limit = MagicMock(remaining=5000, limit=5000)
 
             mock_summarizer_instance = AsyncMock()
@@ -184,7 +188,9 @@ class TestIntegration:
             mock_gh_instance = AsyncMock()
             mock_gh_service.return_value = mock_gh_instance
             mock_gh_instance.__aenter__.return_value = mock_gh_instance
-            mock_gh_instance.get_commits.return_value = []
+            mock_gh_instance.get_commits.return_value = [
+                Commit(sha="1", author="a", message="m", date="2025-01-01T12:00:00Z", html_url="url")
+            ]
             mock_gh_instance.rate_limit = None
 
             mock_summarizer_instance = AsyncMock()

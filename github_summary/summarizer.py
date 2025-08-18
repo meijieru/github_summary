@@ -104,12 +104,7 @@ class Summarizer:
         Returns:
             A string containing the generated summary.
         """
-        # If there's no actual data, return a standard message
-        if not any(info.get(key) for key in ["commits", "pull_requests", "issues", "discussions", "releases"]):
-            logger.info("No new data to summarize.")
-            return "No new updates."
-
-        logger.info("Generating LLM prompt.")
+        logger.info("Generating LLM prompt for %s", info.get("repo", "unknown"))
 
         # Convert timestamps if a valid timezone is set
         processed_info = self._convert_timestamps(info, self._tz) if self._tz else info

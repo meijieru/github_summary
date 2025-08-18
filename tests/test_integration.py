@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from github_summary.app import GitHubSummaryApp
-from github_summary.models import Config, GitHubConfig, LLMConfig, RepoConfig
+from github_summary.models import (
+    Commit,
+    Config,
+    GitHubConfig,
+    LLMConfig,
+    RepoConfig,
+)
 
 
 @pytest.fixture
@@ -15,7 +21,7 @@ def mock_config():
     """Create a test application configuration."""
     return Config(
         github=GitHubConfig(token="test_token"),
-        repositories=[RepoConfig(name="test/repo")],
+        repositories=[RepoConfig(name="test/repo", include_commits=True)],
         llm=LLMConfig(
             api_key="test_api_key",
             base_url="https://api.openai.com/v1",
@@ -44,7 +50,9 @@ class TestIntegration:
             mock_service = AsyncMock()
             mock_service.__aenter__.return_value = mock_service
             mock_service.__aexit__.return_value = None
-            mock_service.get_commits.return_value = []
+            mock_service.get_commits.return_value = [
+                Commit(sha="1", author="a", message="m", date="2025-01-01T12:00:00Z", html_url="url")
+            ]
             mock_service.get_pull_requests.return_value = []
             mock_service.get_issues.return_value = []
             mock_service.get_discussions.return_value = []
