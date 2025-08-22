@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import json
 import logging
 from pathlib import Path
@@ -20,23 +19,20 @@ class SummaryCache:
 
     async def _ensure_cache_dir(self):
         """Ensure cache directory exists."""
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, functools.partial(self.cache_file.parent.mkdir, parents=True, exist_ok=True))
+        await asyncio.to_thread(self.cache_file.parent.mkdir, parents=True, exist_ok=True)
 
     async def load_all(self) -> List[Dict]:
         """Load all summaries from cache."""
-        loop = asyncio.get_running_loop()
-
-        if not await loop.run_in_executor(None, self.cache_file.exists):
+        if not await asyncio.to_thread(self.cache_file.exists):
             return []
 
         try:
 
-            def _read():
+            def _read_file():
                 with open(self.cache_file, "r") as f:
                     return json.load(f)
 
-            return await loop.run_in_executor(None, _read)
+            return await asyncio.to_thread(_read_file)
         except (json.JSONDecodeError, IOError) as e:
             logger.warning("Could not load cache, starting fresh: %s", e)
             return []
@@ -44,17 +40,16 @@ class SummaryCache:
     async def save_all(self, summaries: List[Dict]):
         """Save all summaries to cache."""
         await self._ensure_cache_dir()
-        loop = asyncio.get_running_loop()
 
         # Sort by timestamp (newest first) and limit
         sorted_summaries = sorted(summaries, key=lambda x: x["timestamp"], reverse=True)
         limited_summaries = sorted_summaries[: self.max_entries]
 
-        def _write():
+        def _write_file():
             with open(self.cache_file, "w") as f:
                 json.dump(limited_summaries, f, indent=2)
 
-        await loop.run_in_executor(None, _write)
+        await asyncio.to_thread(_write_file)
         logger.debug("Saved %d summaries to cache", len(limited_summaries))
 
     async def add_batch(self, new_summaries: List[Dict]) -> int:
