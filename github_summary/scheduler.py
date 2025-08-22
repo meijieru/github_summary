@@ -7,16 +7,16 @@ from typing import Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from github_summary.config import load_config
+from github_summary.app import GitHubSummaryApp
+from github_summary.config import get_max_concurrent_repos, load_config
 
 logger = logging.getLogger(__name__)
 
 
 async def _run_scheduled_job(config_path: str, repo_names: list[str] | None = None):
     """Async job function for scheduler."""
-    from github_summary.app import GitHubSummaryApp
 
-    max_concurrent = int(os.environ.get("GHSUM_CONCURRENT_REPOS", "4"))
+    max_concurrent = get_max_concurrent_repos(config_path)
 
     if repo_names is None:
         # Global job (all repositories)

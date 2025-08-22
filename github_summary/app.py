@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from rich.logging import RichHandler
 
-from github_summary.config import load_config
+from github_summary.config import get_max_concurrent_repos, load_config
 from github_summary.github_client import GitHubService
 from github_summary.last_run_manager import (
     _get_run_key,
@@ -139,22 +139,7 @@ class GitHubSummaryApp:
 
     def _get_max_concurrent_repos(self, override: Optional[int] = None) -> int:
         """Get max concurrent repos with environment variable override."""
-        if override is not None:
-            return override
-
-        # Use config value as default
-        max_concurrent = self.config.performance.max_concurrent_repos
-
-        # Allow environment variable override
-        env_concurrent = os.environ.get("GHSUM_CONCURRENT_REPOS")
-        if env_concurrent:
-            try:
-                max_concurrent = int(env_concurrent)
-                logger.info("Using GHSUM_CONCURRENT_REPOS environment variable: %d", max_concurrent)
-            except ValueError:
-                logger.warning("Invalid GHSUM_CONCURRENT_REPOS value: %s, using config/default", env_concurrent)
-
-        return max_concurrent
+        return get_max_concurrent_repos(self.config_path, override)
 
     def _merge_filters(self, repo: RepoConfig, global_filters: FilterConfig) -> FilterConfig:
         """Merge global and repository-specific filters."""
