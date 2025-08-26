@@ -110,7 +110,7 @@ class LLMConfig(BaseModel):
     model_name: str = "gpt-4.1"
     language: str | None = None
     retries: int = 3
-    retry_delay: int = 1
+    retry_exp_multiplier: int = 1
     system_prompt: str = """
 You are a specialized AI assistant that crafts high-level technical changelogs from GitHub repository activity. Your audience is experienced developers and project maintainers who are already familiar with the project's core architecture.
 

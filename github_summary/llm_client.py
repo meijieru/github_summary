@@ -16,8 +16,8 @@ class AsyncLLMClient:
         api_key: str,
         base_url: str | None = None,
         model_name: str = "gpt-4",
-        retries: int = 3,
-        retry_delay: int = 1,
+        retries: int = 5,
+        retry_exp_multiplier: int = 1,
         max_concurrent: int = 3,
     ):
         """Initialize the AsyncOpenAI-based LLM client.
@@ -27,12 +27,12 @@ class AsyncLLMClient:
             base_url: The base URL for the API. If None, uses OpenAI's default.
             model_name: The name of the model to use.
             retries: Number of retry attempts for failed requests.
-            retry_delay: Base delay between retries in seconds.
+            retry_exp_multiplier: The multiplier for exponential backoff in seconds.
             max_concurrent: Maximum number of concurrent requests.
         """
         self.model_name = model_name
         self.retries = retries
-        self.retry_delay = retry_delay
+        self.retry_exp_multiplier = retry_exp_multiplier
         self.semaphore = asyncio.Semaphore(max_concurrent)
 
         # Create AsyncOpenAI client
@@ -63,7 +63,7 @@ class AsyncLLMClient:
 
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.retries),
-            wait=wait_exponential(multiplier=self.retry_delay, min=self.retry_delay, max=60),
+            wait=wait_exponential(multiplier=self.retry_exp_multiplier, max=900),
         ):
             with attempt:
                 logger.debug("Making LLM API request with model %s", self.model_name)

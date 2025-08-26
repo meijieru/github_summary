@@ -10,7 +10,7 @@ base_url = "https://api.openai.com/v1"  # Optional: custom endpoint
 model_name = "gpt-4"
 language = "English"
 retries = 3
-retry_delay = 1
+retry_exp_multiplier = 1
 
 # Performance and concurrency settings
 [performance]

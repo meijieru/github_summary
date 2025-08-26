@@ -62,7 +62,7 @@ class TestAsyncLLMClient:
             client = AsyncLLMClient(
                 api_key="test_key",
                 retries=2,
-                retry_delay=1,  # Fast retry for testing
+                retry_exp_multiplier=1,  # Fast retry for testing
             )
 
             result = await client.generate_summary("Test prompt")

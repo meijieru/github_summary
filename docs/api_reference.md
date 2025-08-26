@@ -294,7 +294,7 @@ LLM service configuration.
 - `model_name: str` - Model name
 - `language: str | None` - Summary language
 - `retries: int` - Number of retries
-- `retry_delay: int` - Delay between retries
+- `retry_exp_multiplier: int` - Delay between retries
 - `system_prompt: str` - System prompt for the LLM
 
 ### Performance Configuration
