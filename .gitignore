@@ -10,6 +10,4 @@ wheels/
 .venv
 
 config/
-cache/
-output/
-log/
+data/
