@@ -9,7 +9,6 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 import typer
 from fastapi import FastAPI
@@ -17,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from rich.logging import RichHandler
 
-from github_summary.config import get_max_concurrent_repos, load_config
+from github_summary.config import get_max_concurrent_repos, load_config, resolve_runtime_paths
 from github_summary.github_client import GitHubService
 from github_summary.last_run_manager import (
     _get_run_key,
@@ -36,9 +35,19 @@ logger = logging.getLogger(__name__)
 class GitHubSummaryApp:
     """Core GitHub summary application."""
 
-    def __init__(self, config_path: str, skip_summary: bool = False):
+    def __init__(
+        self,
+        config_path: str,
+        skip_summary: bool = False,
+        output_dir: str | None = None,
+        cache_dir: str | None = None,
+        log_dir: str | None = None,
+    ):
         self.config_path = config_path
         self.skip_summary = skip_summary
+        self.output_dir_override = output_dir
+        self.cache_dir_override = cache_dir
+        self.log_dir_override = log_dir
         self._config: Config | None = None
         self._github_service: GitHubService | None = None
         self._summarizer: Summarizer | None = None
@@ -59,6 +68,15 @@ class GitHubSummaryApp:
         if self._config is None:
             try:
                 self._config = load_config(self.config_path)
+                overrides = {}
+                if self.output_dir_override is not None:
+                    overrides["output_dir"] = self.output_dir_override
+                if self.cache_dir_override is not None:
+                    overrides["cache_dir"] = self.cache_dir_override
+                if self.log_dir_override is not None:
+                    overrides["log_dir"] = self.log_dir_override
+                if overrides:
+                    self._config = resolve_runtime_paths(self._config.model_copy(update=overrides))
             except (FileNotFoundError, ValueError) as e:
                 logger.error("Configuration error: %s", e)
                 raise typer.Exit(1)
@@ -69,8 +87,8 @@ class GitHubSummaryApp:
         if self._logging_initialized:
             return
 
-        log_dir = Path("log")
-        log_dir.mkdir(exist_ok=True)
+        log_dir = Path(self.config.log_dir)
+        log_dir.mkdir(parents=True, exist_ok=True)
 
         console_handler = RichHandler(
             rich_tracebacks=True,
@@ -137,7 +155,7 @@ class GitHubSummaryApp:
 
         return self._summarizer
 
-    def _get_max_concurrent_repos(self, override: Optional[int] = None) -> int:
+    def _get_max_concurrent_repos(self, override: int | None = None) -> int:
         """Get max concurrent repos with environment variable override."""
         return get_max_concurrent_repos(self.config_path, override)
 
@@ -216,12 +234,12 @@ class GitHubSummaryApp:
             return fallback_since
 
         # Try per-repository last run time first
-        last_run_time = await get_last_run_time(self.config_path, repo_name)
+        last_run_time = await get_last_run_time(self.config_path, repo_name, self.config.cache_dir)
         if last_run_time:
             return last_run_time
 
         # Fall back to global last run time for backward compatibility
-        global_last_run_time = await get_last_run_time(self.config_path)
+        global_last_run_time = await get_last_run_time(self.config_path, cache_dir=self.config.cache_dir)
         if global_last_run_time:
             return global_last_run_time
 
@@ -411,7 +429,7 @@ class GitHubSummaryApp:
                 cache_entries = []
 
                 for i, result in enumerate(results):
-                    if isinstance(result, Exception) or result is None:
+                    if isinstance(result, BaseException) or result is None:
                         logger.error("Repository %s failed with exception: %s", repositories[i].name, result)
                         continue
 
@@ -422,7 +440,7 @@ class GitHubSummaryApp:
                         last_run_updates[run_key] = completion_time
 
                     # Collect successful summaries for batch caching
-                    if summary and self.config.rss:
+                    if summary and self.config.rss and completion_time is not None:
                         summary_id = f"{repo_name}-{completion_time.isoformat()}"
                         repo_link = f"https://github.com/{repo_name}"
 
@@ -437,7 +455,7 @@ class GitHubSummaryApp:
 
                 # Batch add all summaries to cache
                 if cache_entries:
-                    added_count = await add_summaries_to_cache(cache_entries)
+                    added_count = await add_summaries_to_cache(cache_entries, self.config.cache_dir)
                     logger.info("Added %d summaries to cache", added_count)
 
                 # Log rate limit info
@@ -450,13 +468,13 @@ class GitHubSummaryApp:
 
                 # Regenerate RSS feed from the cache
                 if self.config.rss:
-                    all_summaries = await load_summaries()
+                    all_summaries = await load_summaries(self.config.cache_dir)
                     if all_summaries:
                         generate_feed_from_summaries(self.config.rss, self.config.output_dir, all_summaries)
 
                 # Batch update last run times (async)
                 if last_run_updates:
-                    await set_multiple_last_run_times(last_run_updates)
+                    await set_multiple_last_run_times(last_run_updates, self.config.cache_dir)
                     logger.info("Updated last run times for %d repositories", len(last_run_updates))
 
                 logger.info("Processing completed for %d repositories", len(repositories))
@@ -471,16 +489,19 @@ class GitHubSummaryApp:
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events for the FastAPI app."""
     config_path = getattr(app.state, "config_path", "config/config.toml")
+    output_dir = getattr(app.state, "output_dir", None)
+    cache_dir = getattr(app.state, "cache_dir", None)
+    log_dir = getattr(app.state, "log_dir", None)
 
     # Import here to avoid circular imports
     from github_summary.scheduler import ReportScheduler
 
     # Ensure output directory exists
-    github_app = GitHubSummaryApp(config_path)
+    github_app = GitHubSummaryApp(config_path, output_dir=output_dir, cache_dir=cache_dir, log_dir=log_dir)
     os.makedirs(github_app.config.output_dir, exist_ok=True)
 
     # Start scheduler
-    scheduler = ReportScheduler(config_path)
+    scheduler = ReportScheduler(config_path, output_dir=output_dir, cache_dir=cache_dir, log_dir=log_dir)
     await scheduler.start()
 
     yield
@@ -489,7 +510,12 @@ async def lifespan(app: FastAPI):
     await scheduler.stop()
 
 
-def create_web_app(config_path: str = "config/config.toml") -> FastAPI:
+def create_web_app(
+    config_path: str | None = None,
+    output_dir: str | None = None,
+    cache_dir: str | None = None,
+    log_dir: str | None = None,
+) -> FastAPI:
     """Create FastAPI application for RSS server.
 
     Args:
@@ -498,6 +524,11 @@ def create_web_app(config_path: str = "config/config.toml") -> FastAPI:
     Returns:
         Configured FastAPI application.
     """
+    config_path = config_path or os.environ.get("GHSUM_CONFIG_PATH", "config/config.toml")
+    output_dir = output_dir or os.environ.get("GHSUM_OUTPUT_DIR")
+    cache_dir = cache_dir or os.environ.get("GHSUM_CACHE_DIR")
+    log_dir = log_dir or os.environ.get("GHSUM_LOG_DIR")
+
     app = FastAPI(
         title="GitHub Summary RSS Server",
         description="Simple RSS server for GitHub repository summaries",
@@ -506,6 +537,9 @@ def create_web_app(config_path: str = "config/config.toml") -> FastAPI:
 
     # Store config_path in app state
     app.state.config_path = config_path
+    app.state.output_dir = output_dir
+    app.state.cache_dir = cache_dir
+    app.state.log_dir = log_dir
 
     @app.get("/healthz")
     def health_check() -> JSONResponse:
@@ -523,8 +557,9 @@ def create_web_app(config_path: str = "config/config.toml") -> FastAPI:
         )
 
     # Load config to get output directory for static files
-    github_app = GitHubSummaryApp(config_path)
+    github_app = GitHubSummaryApp(config_path, output_dir=output_dir, cache_dir=cache_dir, log_dir=log_dir)
     output_dir = github_app.config.output_dir
+    os.makedirs(output_dir, exist_ok=True)
 
     # Mount static files (generated summaries and RSS)
     app.mount("/", StaticFiles(directory=output_dir, html=False), name="static")

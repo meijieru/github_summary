@@ -1,12 +1,15 @@
-import asyncio
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
-from typing import Dict, List
+
+from github_summary.paths import get_default_cache_dir
 
 logger = logging.getLogger(__name__)
 
-CACHE_FILE_PATH = Path("cache/summary_cache.json")
+DEFAULT_CACHE_DIR = get_default_cache_dir()
+CACHE_FILE_PATH = DEFAULT_CACHE_DIR / "summary_cache.json"
 DEFAULT_MAX_ENTRIES = 100
 
 
@@ -17,13 +20,13 @@ class SummaryCache:
         self.cache_file = cache_file
         self.max_entries = max_entries
 
-    async def _ensure_cache_dir(self):
+    async def _ensure_cache_dir(self) -> None:
         """Ensure cache directory exists."""
-        await asyncio.to_thread(self.cache_file.parent.mkdir, parents=True, exist_ok=True)
+        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
 
-    async def load_all(self) -> List[Dict]:
+    async def load_all(self) -> list[dict]:
         """Load all summaries from cache."""
-        if not await asyncio.to_thread(self.cache_file.exists):
+        if not self.cache_file.exists():
             return []
 
         try:
@@ -32,12 +35,12 @@ class SummaryCache:
                 with open(self.cache_file, "r") as f:
                     return json.load(f)
 
-            return await asyncio.to_thread(_read_file)
+            return _read_file()
         except (json.JSONDecodeError, IOError) as e:
             logger.warning("Could not load cache, starting fresh: %s", e)
             return []
 
-    async def save_all(self, summaries: List[Dict]):
+    async def save_all(self, summaries: list[dict]) -> None:
         """Save all summaries to cache."""
         await self._ensure_cache_dir()
 
@@ -46,13 +49,15 @@ class SummaryCache:
         limited_summaries = sorted_summaries[: self.max_entries]
 
         def _write_file():
-            with open(self.cache_file, "w") as f:
+            with tempfile.NamedTemporaryFile("w", dir=self.cache_file.parent, delete=False) as f:
                 json.dump(limited_summaries, f, indent=2)
+                temp_file = Path(f.name)
+            os.replace(temp_file, self.cache_file)
 
-        await asyncio.to_thread(_write_file)
+        _write_file()
         logger.debug("Saved %d summaries to cache", len(limited_summaries))
 
-    async def add_batch(self, new_summaries: List[Dict]) -> int:
+    async def add_batch(self, new_summaries: list[dict]) -> int:
         """Add multiple summaries, avoiding duplicates."""
         if not new_summaries:
             return 0
@@ -80,20 +85,27 @@ class SummaryCache:
         return len(unique_new)
 
 
-# Global instance
+# Default global instance, used when no cache directory is supplied.
 _cache = SummaryCache()
 
 
-async def load_summaries() -> List[Dict]:
+def _get_cache(cache_dir: str | os.PathLike[str] | None = None) -> SummaryCache:
+    """Return the default cache or a cache rooted at cache_dir."""
+    if cache_dir is None:
+        return _cache
+    return SummaryCache(cache_file=Path(cache_dir) / "summary_cache.json")
+
+
+async def load_summaries(cache_dir: str | os.PathLike[str] | None = None) -> list[dict]:
     """Load all summaries."""
-    return await _cache.load_all()
+    return await _get_cache(cache_dir).load_all()
 
 
-async def add_summaries_to_cache(summaries: List[Dict]) -> int:
+async def add_summaries_to_cache(summaries: list[dict], cache_dir: str | os.PathLike[str] | None = None) -> int:
     """Add multiple summaries to cache."""
-    return await _cache.add_batch(summaries)
+    return await _get_cache(cache_dir).add_batch(summaries)
 
 
-async def save_summaries(summaries: List[Dict]):
+async def save_summaries(summaries: list[dict], cache_dir: str | os.PathLike[str] | None = None) -> None:
     """Replace cache with new summaries."""
-    await _cache.save_all(summaries)
+    await _get_cache(cache_dir).save_all(summaries)

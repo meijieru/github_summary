@@ -22,14 +22,16 @@ def runner():
 def temp_config():
     """Create a temporary configuration file."""
     config_content = """
+output_dir = "test_output"
+cache_dir = "test_cache"
+log_dir = "test_log"
+log_level = "ERROR"  # Reduce noise in tests
+
 [github]
 token = "test_token"
 
 [[repositories]]
 name = "test/repo"
-
-output_dir = "test_output"
-log_level = "ERROR"  # Reduce noise in tests
 """
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -99,7 +101,13 @@ class TestCLICommands:
         result = runner.invoke(app, ["run", "--config", temp_config, "--skip-summary"])
 
         assert result.exit_code == 0
-        mock_app_class.assert_called_once_with(temp_config, skip_summary=True)
+        mock_app_class.assert_called_once_with(
+            temp_config,
+            skip_summary=True,
+            output_dir=None,
+            cache_dir=None,
+            log_dir=None,
+        )
         mock_app.run.assert_called_once()
 
     @patch("github_summary.cli.GitHubSummaryApp")
@@ -124,9 +132,47 @@ class TestCLICommands:
         )
 
         assert result.exit_code == 0
-        mock_app_class.assert_called_once_with(temp_config, skip_summary=True)
+        mock_app_class.assert_called_once_with(
+            temp_config,
+            skip_summary=True,
+            output_dir=None,
+            cache_dir=None,
+            log_dir=None,
+        )
         mock_app.run.assert_called_once_with(
             repo_names=["owner/repo"], save_json=True, save_markdown=True, max_concurrent_repos=None
+        )
+
+    @patch("github_summary.cli.GitHubSummaryApp")
+    def test_run_command_with_directory_overrides(self, mock_app_class, runner, temp_config):
+        """Test run command directory overrides."""
+        mock_app = AsyncMock()
+        mock_app_class.return_value = mock_app
+        mock_app.run.return_value = None
+
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--config",
+                temp_config,
+                "--output-dir",
+                "custom-output",
+                "--cache-dir",
+                "custom-cache",
+                "--log-dir",
+                "custom-log",
+                "--skip-summary",
+            ],
+        )
+
+        assert result.exit_code == 0
+        mock_app_class.assert_called_once_with(
+            temp_config,
+            skip_summary=True,
+            output_dir="custom-output",
+            cache_dir="custom-cache",
+            log_dir="custom-log",
         )
 
     @patch("github_summary.cli.uvicorn")
@@ -139,7 +185,7 @@ class TestCLICommands:
         result = runner.invoke(app, ["serve", "--config", temp_config, "--host", "127.0.0.1", "--port", "9000"])
 
         assert result.exit_code == 0
-        mock_create_app.assert_called_once_with(temp_config)
+        mock_create_app.assert_called_once_with(temp_config, output_dir=None, cache_dir=None, log_dir=None)
         mock_uvicorn.run.assert_called_once_with(mock_web_app, host="127.0.0.1", port=9000, reload=False)
 
     @patch("github_summary.cli.uvicorn")
@@ -153,6 +199,40 @@ class TestCLICommands:
         assert result.exit_code == 0
         # Check that config path was set in environment
         assert os.environ.get("GHSUM_CONFIG_PATH") == temp_config
+        assert os.environ.get("GHSUM_OUTPUT_DIR") is None
+        assert os.environ.get("GHSUM_CACHE_DIR") is None
+        assert os.environ.get("GHSUM_LOG_DIR") is None
+        mock_uvicorn.run.assert_called_once_with(
+            "github_summary.app:create_web_app", host="0.0.0.0", port=8000, reload=True, factory=True
+        )
+
+    @patch("github_summary.cli.uvicorn")
+    @patch.dict("os.environ", {}, clear=True)
+    def test_serve_command_reload_with_directory_overrides(self, mock_uvicorn, runner, temp_config):
+        """Test serve reload command with directory overrides."""
+        import os
+
+        result = runner.invoke(
+            app,
+            [
+                "serve",
+                "--config",
+                temp_config,
+                "--output-dir",
+                "custom-output",
+                "--cache-dir",
+                "custom-cache",
+                "--log-dir",
+                "custom-log",
+                "--reload",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert os.environ.get("GHSUM_CONFIG_PATH") == temp_config
+        assert os.environ.get("GHSUM_OUTPUT_DIR") == "custom-output"
+        assert os.environ.get("GHSUM_CACHE_DIR") == "custom-cache"
+        assert os.environ.get("GHSUM_LOG_DIR") == "custom-log"
         mock_uvicorn.run.assert_called_once_with(
             "github_summary.app:create_web_app", host="0.0.0.0", port=8000, reload=True, factory=True
         )
@@ -167,7 +247,7 @@ class TestCLICommands:
         result = runner.invoke(app, ["schedule", "--config", temp_config])
 
         assert result.exit_code == 0
-        mock_scheduler_class.assert_called_once_with(temp_config)
+        mock_scheduler_class.assert_called_once_with(temp_config, output_dir=None, cache_dir=None, log_dir=None)
         mock_scheduler.run_forever.assert_called_once()
 
 

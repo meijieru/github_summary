@@ -1,6 +1,16 @@
 # Advanced Configuration Example
 # ===============================
 
+# Configuration options
+run_dir = "~/.local/state/github-summary"
+output_dir = "reports"
+cache_dir = "cache"
+log_dir = "logs"
+log_level = "INFO"
+since_last_run = true
+fallback_lookback_days = 7
+timezone = "America/New_York"
+
 [github]
 token = "your_github_token_here"
 
@@ -76,10 +86,3 @@ cron = "0 16 * * 5"             # Friday at 4 PM
 [[repositories]]
 name = "personal/side-project"
 # Uses global schedule (weekdays at 7 AM EST)
-
-# Configuration options:
-output_dir = "reports"
-log_level = "INFO"
-since_last_run = true
-fallback_lookback_days = 7
-timezone = "America/New_York"

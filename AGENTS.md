@@ -90,7 +90,7 @@ This section provides essential context for AI development assistants:
 
 **Development Requirements:**
 
-- **Python 3.11+**: Required for modern async features and performance
+- **Python 3.13+**: Required for modern async features and performance
 - **Dependency Management**: Use uv for fast dependency resolution and virtual environments
 - Update relevant documentation when making changes
 - Maintain consistency with existing codebase patterns
@@ -103,7 +103,7 @@ This section provides essential context for AI development assistants:
 
 ### Core Dependencies
 
-- **asyncio**: Native Python async runtime (Python 3.11+)
+- **asyncio**: Native Python async runtime (Python 3.13+)
 - **gidgethub**: Production-ready GitHub API client with rate limiting
 - **openai**: Official OpenAI client with async support
 - **httpx**: Modern async HTTP client (replaces requests)

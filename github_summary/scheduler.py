@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from collections import defaultdict
-from typing import Optional
+from typing import Any, cast
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -13,7 +13,13 @@ from github_summary.config import get_max_concurrent_repos, load_config
 logger = logging.getLogger(__name__)
 
 
-async def _run_scheduled_job(config_path: str, repo_names: list[str] | None = None):
+async def _run_scheduled_job(
+    config_path: str,
+    repo_names: list[str] | None = None,
+    output_dir: str | None = None,
+    cache_dir: str | None = None,
+    log_dir: str | None = None,
+) -> None:
     """Async job function for scheduler."""
 
     max_concurrent = get_max_concurrent_repos(config_path)
@@ -29,7 +35,13 @@ async def _run_scheduled_job(config_path: str, repo_names: list[str] | None = No
         logger.info("Running scheduled job for %d repositories: %s", len(repo_names), ", ".join(repo_names))
 
     try:
-        app = GitHubSummaryApp(config_path, skip_summary=False)
+        app = GitHubSummaryApp(
+            config_path,
+            skip_summary=False,
+            output_dir=output_dir,
+            cache_dir=cache_dir,
+            log_dir=log_dir,
+        )
         await app.run(
             repo_names=repo_names,
             save_json=False,  # Scheduler jobs don't save JSON by default
@@ -45,9 +57,18 @@ async def _run_scheduled_job(config_path: str, repo_names: list[str] | None = No
 class ReportScheduler:
     """Async scheduler for periodic GitHub reports using cron expressions."""
 
-    def __init__(self, config_path: str):
+    def __init__(
+        self,
+        config_path: str,
+        output_dir: str | None = None,
+        cache_dir: str | None = None,
+        log_dir: str | None = None,
+    ):
         self.config_path = config_path
-        self.scheduler: Optional[AsyncIOScheduler] = None
+        self.output_dir = output_dir
+        self.cache_dir = cache_dir
+        self.log_dir = log_dir
+        self.scheduler: AsyncIOScheduler | None = None
 
     def _register_jobs(self, scheduler) -> None:
         """Register all cron jobs from configuration."""
@@ -60,7 +81,7 @@ class ReportScheduler:
             trigger = CronTrigger.from_crontab(cfg.schedule.cron, timezone=cfg.schedule.timezone)
             scheduler.add_job(
                 func=report_func,
-                args=(self.config_path, None),  # None means all repositories
+                args=(self.config_path, None, self.output_dir, self.cache_dir, self.log_dir),
                 trigger=trigger,
                 id="global_schedule",
                 name="Global repository summary",
@@ -82,14 +103,14 @@ class ReportScheduler:
                 # Single repository
                 job_id = f"repo_{repo_names[0]}"
                 job_name = f"Summary for {repo_names[0]}"
-                job_args = (self.config_path, [repo_names[0]])
+                job_args = (self.config_path, [repo_names[0]], self.output_dir, self.cache_dir, self.log_dir)
             else:
                 # Multiple repositories with same schedule
                 job_id = f"grouped_repos_{'_'.join(repo_names[:3])}"  # Limit ID length
                 if len(repo_names) > 3:
                     job_id += f"_and_{len(repo_names) - 3}_more"
                 job_name = f"Summary for {len(repo_names)} repositories"
-                job_args = (self.config_path, repo_names)
+                job_args = (self.config_path, repo_names, self.output_dir, self.cache_dir, self.log_dir)
 
             scheduler.add_job(
                 func=report_func,
@@ -132,7 +153,7 @@ class ReportScheduler:
     async def stop(self) -> None:
         """Stop the async scheduler."""
         if self.scheduler:
-            self.scheduler.shutdown(wait=True)
+            cast(Any, self.scheduler).shutdown(wait=True)
             logger.info("Scheduler stopped")
 
     async def run_forever(self) -> None:

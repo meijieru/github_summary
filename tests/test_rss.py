@@ -7,6 +7,12 @@ from github_summary.models import RssConfig
 from github_summary.rss import generate_feed_from_summaries
 
 
+def _required_child(element: ET.Element, tag: str) -> ET.Element:
+    child = element.find(tag)
+    assert child is not None
+    return child
+
+
 @pytest.fixture
 def rss_config():
     """Return a sample RssConfig object."""
@@ -54,9 +60,9 @@ def test_generate_feed(rss_config, summaries_data, tmp_path):
     channel = root.find("channel")
 
     assert channel is not None
-    assert channel.find("title").text == rss_config.title
-    assert channel.find("link").text == rss_config.link
-    assert channel.find("description").text == rss_config.description
+    assert _required_child(channel, "title").text == rss_config.title
+    assert _required_child(channel, "link").text == rss_config.link
+    assert _required_child(channel, "description").text == rss_config.description
 
     items = channel.findall("item")
     assert len(items) == 2
@@ -72,11 +78,12 @@ def test_feed_sorting(rss_config, summaries_data, tmp_path):
     tree = ET.parse(str(rss_file))
     root = tree.getroot()
     channel = root.find("channel")
+    assert channel is not None
     items = channel.findall("item")
 
     # The newest item should be first
-    assert items[0].find("title").text == "Summary for test/repo-2"
-    assert items[1].find("title").text == "Summary for test/repo-1"
+    assert _required_child(items[0], "title").text == "Summary for test/repo-2"
+    assert _required_child(items[1], "title").text == "Summary for test/repo-1"
 
 
 @pytest.mark.unit
@@ -108,6 +115,7 @@ def test_generate_feed_empty_summaries(rss_config, tmp_path):
     tree = ET.parse(str(rss_file))
     root = tree.getroot()
     channel = root.find("channel")
+    assert channel is not None
     items = channel.findall("item")
 
     assert len(items) == 0

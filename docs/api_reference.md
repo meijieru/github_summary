@@ -13,7 +13,10 @@ from github_summary.app import GitHubSummaryApp
 
 app = GitHubSummaryApp(
     config_path: str,
-    skip_summary: bool = False
+    skip_summary: bool = False,
+    output_dir: str | None = None,
+    cache_dir: str | None = None,
+    log_dir: str | None = None,
 )
 ```
 
@@ -21,6 +24,9 @@ app = GitHubSummaryApp(
 
 - `config_path`: Path to the TOML configuration file
 - `skip_summary`: If True, skips LLM summary generation (data collection only)
+- `output_dir`: Optional runtime override for generated output files
+- `cache_dir`: Optional runtime override for summary cache and last-run state
+- `log_dir`: Optional runtime override for application logs
 
 #### Methods
 
@@ -89,12 +95,20 @@ Create a FastAPI application for the RSS server.
 ```python
 from github_summary.app import create_web_app
 
-web_app = create_web_app(config_path: str = "config/config.toml") -> FastAPI
+web_app = create_web_app(
+    config_path: str | None = None,
+    output_dir: str | None = None,
+    cache_dir: str | None = None,
+    log_dir: str | None = None,
+) -> FastAPI
 ```
 
 **Parameters:**
 
-- `config_path`: Path to the configuration file
+- `config_path`: Path to the configuration file. Defaults to `GHSUM_CONFIG_PATH` or `config/config.toml`
+- `output_dir`: Optional output directory override. Defaults to `GHSUM_OUTPUT_DIR`
+- `cache_dir`: Optional cache directory override. Defaults to `GHSUM_CACHE_DIR`
+- `log_dir`: Optional log directory override. Defaults to `GHSUM_LOG_DIR`
 
 **Returns:**
 
@@ -161,7 +175,12 @@ Handles scheduled execution of repository processing.
 ```python
 from github_summary.scheduler import ReportScheduler
 
-scheduler = ReportScheduler(config_path: str)
+scheduler = ReportScheduler(
+    config_path: str,
+    output_dir: str | None = None,
+    cache_dir: str | None = None,
+    log_dir: str | None = None,
+)
 ```
 
 #### Methods
@@ -263,11 +282,16 @@ config = load_config("config/config.toml")
 - `rss: RssConfig | None` - RSS feed configuration
 - `schedule: ScheduleConfig | None` - Global schedule configuration
 - `performance: PerformanceConfig` - Performance settings
-- `output_dir: str` - Output directory for generated files
+- `run_dir: str` - Base runtime directory. Defaults to `$XDG_STATE_HOME/github-summary`, or `~/.local/state/github-summary`
+- `output_dir: str` - Output directory for generated files. Relative paths resolve inside `run_dir`
+- `cache_dir: str` - Cache directory for RSS summaries and last-run state. Relative paths resolve inside `run_dir`
+- `log_dir: str` - Log directory for the rotating application log. Relative paths resolve inside `run_dir`
 - `log_level: str` - Logging level
 - `since_last_run: bool` - Use last run time for incremental updates
 - `fallback_lookback_days: int` - Days to look back when no last run time
 - `timezone: str` - Default timezone
+
+Relative runtime paths are resolved inside `run_dir` when the config is loaded.
 
 ### RepoConfig
 
@@ -403,4 +427,3 @@ log_level = "INFO"
 # Monitor only errors
 log_level = "ERROR"
 ```
-

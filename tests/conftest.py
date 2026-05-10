@@ -2,7 +2,17 @@ from unittest.mock import patch
 
 import pytest
 
+from github_summary.config import load_config
 from github_summary.summary_cache import SummaryCache
+
+
+@pytest.fixture(autouse=True)
+def isolated_xdg_state_home(tmp_path, monkeypatch):
+    """Route default runtime state into the per-test temporary directory."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    load_config.cache_clear()
+    yield
+    load_config.cache_clear()
 
 
 @pytest.fixture(autouse=True)

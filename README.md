@@ -82,6 +82,15 @@ ghsum utils validate-config
 ### Basic Setup
 
 ```toml
+# Optional. Defaults to:
+#   $XDG_STATE_HOME/github-summary
+# or:
+#   ~/.local/state/github-summary
+# run_dir = "~/.local/state/github-summary"
+output_dir = "output"
+cache_dir = "cache"
+log_dir = "log"
+
 [github]
 token = "YOUR_GITHUB_TOKEN"
 
@@ -98,6 +107,8 @@ language = "English"
 max_concurrent_repos = 4  # Maximum concurrent repository processing
 max_concurrent_llm = 3    # Maximum concurrent LLM requests
 ```
+
+By default, runtime files live under the XDG state directory: `$XDG_STATE_HOME/github-summary`, or `~/.local/state/github-summary` when `XDG_STATE_HOME` is not set. Relative `output_dir`, `cache_dir`, and `log_dir` values are resolved inside `run_dir`; absolute paths are used as-is. They can also be overridden from the CLI with `--output-dir`, `--cache-dir`, and `--log-dir`.
 
 ### RSS Configuration
 
@@ -227,19 +238,40 @@ await app.run(
 
 ### Docker Deployment
 
-```dockerfile
-FROM python:3.11-slim
+Build the image:
 
-WORKDIR /app
-COPY . .
-RUN pip install -e .
+```bash
+docker build -t github-summary .
+```
 
-# RSS Server
-EXPOSE 8000
-CMD ["ghsum", "serve", "--host", "0.0.0.0"]
+Run the RSS server:
 
-# Or Scheduler
-# CMD ["ghsum", "schedule"]
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -v "$PWD/config/config.toml:/config/config.toml:ro" \
+  -v github-summary-state:/data \
+  github-summary
+```
+
+The container sets `XDG_STATE_HOME=/data`, so runtime files are stored under `/data/github-summary` by default. Mount `/data` or set `run_dir` in `config.toml` if you want a different persistent location.
+
+Run the scheduler instead of the web server:
+
+```bash
+docker run --rm \
+  -v "$PWD/config/config.toml:/config/config.toml:ro" \
+  -v github-summary-state:/data \
+  github-summary schedule
+```
+
+Run a one-off report:
+
+```bash
+docker run --rm \
+  -v "$PWD/config/config.toml:/config/config.toml:ro" \
+  -v github-summary-state:/data \
+  github-summary run --skip-summary
 ```
 
 ## 🧪 Testing

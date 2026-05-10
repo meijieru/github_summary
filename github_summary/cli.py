@@ -23,8 +23,11 @@ app.add_typer(utils_app, name="utils")
 @app.command("run")
 @functools.partial(syncify, raise_sync_error=False)
 async def run(
-    repo: str = typer.Option(None, "--repo", "-r", help="Process specific repository (format: owner/repo)"),
+    repo: str | None = typer.Option(None, "--repo", "-r", help="Process specific repository (format: owner/repo)"),
     config: str = typer.Option("config/config.toml", "--config", "-c", help="Path to configuration file"),
+    output_dir: str | None = typer.Option(None, "--output-dir", help="Override output directory"),
+    cache_dir: str | None = typer.Option(None, "--cache-dir", help="Override cache directory"),
+    log_dir: str | None = typer.Option(None, "--log-dir", help="Override log directory"),
     save_json: bool = typer.Option(False, "--save-json", help="Save detailed JSON reports"),
     save_markdown: bool = typer.Option(False, "--save-markdown", help="Save markdown summaries"),
     skip_summary: bool = typer.Option(False, "--skip-summary", help="Skip LLM summary generation"),
@@ -32,7 +35,13 @@ async def run(
 ) -> None:
     """📊 Generate repository summaries."""
 
-    app_instance = GitHubSummaryApp(config, skip_summary=skip_summary)
+    app_instance = GitHubSummaryApp(
+        config,
+        skip_summary=skip_summary,
+        output_dir=output_dir,
+        cache_dir=cache_dir,
+        log_dir=log_dir,
+    )
 
     repo_names = [repo] if repo else None
 
@@ -47,6 +56,9 @@ async def run(
 @app.command("serve")
 def serve(
     config: str = typer.Option("config/config.toml", "--config", "-c", help="Path to configuration file"),
+    output_dir: str | None = typer.Option(None, "--output-dir", help="Override output directory"),
+    cache_dir: str | None = typer.Option(None, "--cache-dir", help="Override cache directory"),
+    log_dir: str | None = typer.Option(None, "--log-dir", help="Override log directory"),
     host: str = typer.Option("0.0.0.0", "--host", help="Host interface"),
     port: int = typer.Option(8000, "--port", "-p", help="Port to bind"),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload (development only)"),
@@ -56,10 +68,16 @@ def serve(
     if reload:
         # For development with auto-reload
         os.environ["GHSUM_CONFIG_PATH"] = config
+        if output_dir is not None:
+            os.environ["GHSUM_OUTPUT_DIR"] = output_dir
+        if cache_dir is not None:
+            os.environ["GHSUM_CACHE_DIR"] = cache_dir
+        if log_dir is not None:
+            os.environ["GHSUM_LOG_DIR"] = log_dir
         uvicorn.run("github_summary.app:create_web_app", host=host, port=port, reload=True, factory=True)
     else:
         # Production mode
-        web_app = create_web_app(config)
+        web_app = create_web_app(config, output_dir=output_dir, cache_dir=cache_dir, log_dir=log_dir)
         uvicorn.run(web_app, host=host, port=port, reload=False)
 
 
@@ -67,12 +85,15 @@ def serve(
 @functools.partial(syncify, raise_sync_error=False)
 async def schedule(
     config: str = typer.Option("config/config.toml", "--config", "-c", help="Path to configuration file"),
+    output_dir: str | None = typer.Option(None, "--output-dir", help="Override output directory"),
+    cache_dir: str | None = typer.Option(None, "--cache-dir", help="Override cache directory"),
+    log_dir: str | None = typer.Option(None, "--log-dir", help="Override log directory"),
 ) -> None:
     """⏰ Run scheduler daemon (blocking)."""
 
     from github_summary.scheduler import ReportScheduler
 
-    scheduler = ReportScheduler(config)
+    scheduler = ReportScheduler(config, output_dir=output_dir, cache_dir=cache_dir, log_dir=log_dir)
     await scheduler.run_forever()
 
 

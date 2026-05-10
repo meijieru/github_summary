@@ -12,18 +12,29 @@ import typer
 
 from github_summary.app import GitHubSummaryApp, create_web_app
 from github_summary.models import Commit
+from github_summary.paths import get_default_run_dir
 
 
 @pytest.fixture
 def temp_config():
     """Create a temporary configuration file with RSS enabled."""
     config_content = """
+output_dir = "test_output"
+cache_dir = "test_cache"
+log_dir = "test_log"
+log_level = "INFO"
+since_last_run = true
+fallback_lookback_days = 7
+
 [github]
 token = "test_token"
 
 [[repositories]]
 name = "test/repo"
 include_commits = true
+include_pull_requests = false
+include_issues = false
+include_discussions = false
 
 [llm]
 api_key = "test_api_key"
@@ -33,11 +44,6 @@ title = "Test Feed"
 link = "http://example.com"
 description = "Test Desc"
 filename = "feed.xml"
-
-output_dir = "test_output"
-log_level = "INFO"
-since_last_run = true
-fallback_lookback_days = 7
 """
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -54,14 +60,19 @@ fallback_lookback_days = 7
 def minimal_config():
     """Create a minimal configuration file."""
     config_content = """
+output_dir = "test_output"
+cache_dir = "test_cache"
+log_dir = "test_log"
+
 [github]
 token = "test_token"
 
 [[repositories]]
 name = "test/repo"
 include_commits = true
-
-output_dir = "test_output"
+include_pull_requests = false
+include_issues = false
+include_discussions = false
 """
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
@@ -82,6 +93,21 @@ class TestGitHubSummaryApp:
         app = GitHubSummaryApp(temp_config, skip_summary=True)
         assert app.config_path == temp_config
 
+    def test_directory_overrides(self, temp_config):
+        """Test output and cache directories can be overridden at runtime."""
+        app = GitHubSummaryApp(
+            temp_config,
+            skip_summary=True,
+            output_dir="custom-output",
+            cache_dir="custom-cache",
+            log_dir="custom-log",
+        )
+
+        run_dir = Path(get_default_run_dir())
+        assert app.config.output_dir == str((run_dir / "custom-output").resolve())
+        assert app.config.cache_dir == str((run_dir / "custom-cache").resolve())
+        assert app.config.log_dir == str((run_dir / "custom-log").resolve())
+
     @pytest.mark.asyncio
     async def test_run_with_skip_summary(self, minimal_config):
         """Test running with summary skipped."""
@@ -99,7 +125,7 @@ class TestGitHubSummaryApp:
     async def test_run_with_invalid_repo(self, temp_config):
         """Test running with invalid repository name."""
         app = GitHubSummaryApp(temp_config, skip_summary=True)
-        with pytest.raises((SystemExit, typer.Exit)):
+        with pytest.raises(typer.Exit):
             await app.run(repo_names=["invalid/repo"])
 
 
@@ -111,6 +137,18 @@ class TestWebApp:
         web_app = create_web_app(minimal_config)
         assert web_app is not None
         assert web_app.state.config_path == minimal_config
+        assert web_app.state.output_dir is None
+        assert web_app.state.cache_dir is None
+        assert web_app.state.log_dir is None
+
+    def test_create_web_app_creates_output_dir(self, minimal_config, tmp_path):
+        """Test creating FastAPI web app creates the static output directory."""
+        output_dir = tmp_path / "web-output"
+
+        web_app = create_web_app(minimal_config, output_dir=str(output_dir))
+
+        assert web_app is not None
+        assert output_dir.exists()
 
 
 class TestIntegration:
@@ -166,7 +204,7 @@ class TestIntegration:
             assert call_args[0]["content"] == "Test summary content"
 
             # Assert that summaries were loaded from cache to generate the feed
-            mock_load_summaries.assert_called_once()
+            mock_load_summaries.assert_called_once_with(str((Path(get_default_run_dir()) / "test_cache").resolve()))
 
             # Assert that the RSS feed was generated with the loaded summaries
             mock_generate_feed.assert_called_once()

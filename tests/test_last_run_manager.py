@@ -59,3 +59,18 @@ class TestLastRunManager:
 
             result = await get_last_run_time(config_path, repo_name)
             assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_custom_cache_dir(self, tmp_path):
+        """Test last-run times can be stored in a caller-supplied cache directory."""
+        cache_dir = tmp_path / "custom-cache"
+        config_path = "test_config.toml"
+        repo_name = "test/repo"
+        timestamp = datetime.now(UTC)
+
+        await set_multiple_last_run_times({f"{config_path}::{repo_name}": timestamp}, cache_dir)
+
+        assert (cache_dir / "last_run_times.json").exists()
+        result = await get_last_run_time(config_path, repo_name, cache_dir)
+        assert result is not None
+        assert result == timestamp

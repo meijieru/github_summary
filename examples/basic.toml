@@ -1,6 +1,9 @@
 # Simple Getting Started Example
 # ==============================
 
+# Runtime files default to $XDG_STATE_HOME/github-summary
+# (or ~/.local/state/github-summary if XDG_STATE_HOME is unset).
+
 [github]
 token = "your_github_token_here"
 

@@ -1,19 +1,25 @@
-from __future__ import annotations
+from typing import Literal, Self
 
-from typing import Literal
-
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from tzlocal import get_localzone_name
 
+from github_summary.paths import get_default_run_dir
 
-class CommitFilterConfig(BaseModel):
+
+class StrictConfigModel(BaseModel):
+    """Base model for user configuration sections."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class CommitFilterConfig(StrictConfigModel):
     """Configuration for filtering commits."""
 
     author: str | None = None
     exclude_commit_messages_regex: str | None = None
 
 
-class PullRequestFilterConfig(BaseModel):
+class PullRequestFilterConfig(StrictConfigModel):
     """Configuration for filtering pull requests."""
 
     author: str | None = None
@@ -23,7 +29,7 @@ class PullRequestFilterConfig(BaseModel):
     since_filter_type: Literal["updated", "created"] = "updated"
 
 
-class IssueFilterConfig(BaseModel):
+class IssueFilterConfig(StrictConfigModel):
     """Configuration for filtering issues."""
 
     author: str | None = None
@@ -33,14 +39,14 @@ class IssueFilterConfig(BaseModel):
     exclude_issue_titles_regex: str | None = None
 
 
-class DiscussionFilterConfig(BaseModel):
+class DiscussionFilterConfig(StrictConfigModel):
     """Configuration for filtering discussions."""
 
     author: str | None = None
     exclude_discussion_titles_regex: str | None = None
 
 
-class ReleaseFilterConfig(BaseModel):
+class ReleaseFilterConfig(StrictConfigModel):
     """Configuration for filtering releases."""
 
     author: str | None = None
@@ -49,7 +55,7 @@ class ReleaseFilterConfig(BaseModel):
 
 
 # Filters that can be applied globally or per-repo
-class FilterConfig(BaseModel):
+class FilterConfig(StrictConfigModel):
     """Aggregates all filter configurations."""
 
     commits: CommitFilterConfig = Field(default_factory=CommitFilterConfig)
@@ -58,7 +64,7 @@ class FilterConfig(BaseModel):
     discussions: DiscussionFilterConfig = Field(default_factory=DiscussionFilterConfig)
     releases: ReleaseFilterConfig = Field(default_factory=ReleaseFilterConfig)
 
-    def merge_with(self, other: FilterConfig) -> FilterConfig:
+    def merge_with(self, other: Self) -> Self:
         """Merges this FilterConfig with another, prioritizing values from the 'other' config.
 
         Args:
@@ -75,8 +81,15 @@ class FilterConfig(BaseModel):
         return self
 
 
+class ScheduleConfig(StrictConfigModel):
+    """Configuration for scheduling the summarization using cron syntax."""
+
+    cron: str = "0 6 * * *"  # Default: daily at 6 AM (cron format: minute hour day month weekday)
+    timezone: str | None = None  # Optional timezone (e.g., "America/New_York", "UTC")
+
+
 # Per-repository configuration
-class RepoConfig(BaseModel):
+class RepoConfig(StrictConfigModel):
     """Configuration for a single GitHub repository."""
 
     name: str
@@ -90,7 +103,7 @@ class RepoConfig(BaseModel):
     schedule: ScheduleConfig | None = None
 
     @model_validator(mode="after")
-    def validate_release_only(self) -> RepoConfig:
+    def validate_release_only(self) -> Self:
         """Ensures that if release_only is True, all other include flags are False."""
         if self.release_only:
             self.include_commits = False
@@ -102,7 +115,7 @@ class RepoConfig(BaseModel):
 
 
 # Main configuration model
-class LLMConfig(BaseModel):
+class LLMConfig(StrictConfigModel):
     """Configuration for the Language Model (LLM) service."""
 
     base_url: str | None = Field(None, json_schema_extra={"env": "OPENAI_BASE_URL"})
@@ -161,13 +174,13 @@ You will receive the following information:
 """
 
 
-class GitHubConfig(BaseModel):
+class GitHubConfig(StrictConfigModel):
     """Configuration for GitHub API access."""
 
     token: str = Field(..., json_schema_extra={"env": "GITHUB_TOKEN"})
 
 
-class RssConfig(BaseModel):
+class RssConfig(StrictConfigModel):
     """Configuration for the RSS feed."""
 
     title: str = "GitHub Repository Summaries"
@@ -176,21 +189,14 @@ class RssConfig(BaseModel):
     filename: str = "rss.xml"
 
 
-class ScheduleConfig(BaseModel):
-    """Configuration for scheduling the summarization using cron syntax."""
-
-    cron: str = "0 6 * * *"  # Default: daily at 6 AM (cron format: minute hour day month weekday)
-    timezone: str | None = None  # Optional timezone (e.g., "America/New_York", "UTC")
-
-
-class PerformanceConfig(BaseModel):
+class PerformanceConfig(StrictConfigModel):
     """Configuration for performance and concurrency settings."""
 
     max_concurrent_repos: int = Field(4, description="Maximum number of repositories to process concurrently")
     max_concurrent_llm: int = Field(3, description="Maximum number of concurrent LLM API requests")
 
 
-class Config(BaseModel):
+class Config(StrictConfigModel):
     """Main application configuration, including GitHub settings, global filters, repositories, and LLM settings."""
 
     github: GitHubConfig = Field(...)
@@ -199,15 +205,20 @@ class Config(BaseModel):
     llm: LLMConfig | None = None
     rss: RssConfig | None = None
     schedule: ScheduleConfig | None = None
-    performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
+    performance: PerformanceConfig = Field(
+        default_factory=lambda: PerformanceConfig(max_concurrent_repos=4, max_concurrent_llm=3)
+    )
+    run_dir: str = Field(default_factory=get_default_run_dir)
     output_dir: str = "output"
+    cache_dir: str = "cache"
+    log_dir: str = "log"
     log_level: str = "INFO"
     since_last_run: bool = True
     fallback_lookback_days: int = 7
     timezone: str = Field(default_factory=get_localzone_name)
 
     @model_validator(mode="after")
-    def merge_global_filters(self) -> Config:
+    def merge_global_filters(self) -> Self:
         """Merges global filters into each repository's filters after model validation."""
         for repo in self.repositories:
             repo.filters = self.global_filters.model_copy(deep=True).merge_with(repo.filters)

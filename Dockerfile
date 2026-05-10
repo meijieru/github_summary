@@ -1,22 +1,25 @@
-# Use the official Alpine Linux as a base image
-FROM python:3.11-alpine
+FROM python:3.13-slim
 
-# Set the working directory in the container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    XDG_STATE_HOME=/data
+
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock README.md ./
+COPY github_summary ./github_summary
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Copy the rest of the application code
-COPY . .
-  
-# Install the project (after copying source so build can find package)
-RUN pip install --no-cache-dir uv && uv pip install --system .
+RUN pip install --no-cache-dir . \
+    && chmod +x /app/docker-entrypoint.sh \
+    && mkdir -p /config /data \
+    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin ghsum \
+    && chown -R ghsum:ghsum /app /config /data
 
-# Expose service port
+USER ghsum
+
+VOLUME ["/config", "/data"]
 EXPOSE 8000
 
-# Set the entrypoint for the container
-COPY docker-entrypoint.sh .
-
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["serve"]

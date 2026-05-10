@@ -87,3 +87,14 @@ class TestSummaryCache:
         result = await add_summaries_to_cache([])
         assert result == 0
         assert await load_summaries() == []
+
+    @pytest.mark.asyncio
+    async def test_custom_cache_dir(self, tmp_path, sample_summaries):
+        """Test cache can be stored in a caller-supplied directory."""
+        cache_dir = tmp_path / "custom-cache"
+
+        result = await add_summaries_to_cache(sample_summaries[:1], cache_dir)
+
+        assert result == 1
+        assert (cache_dir / "summary_cache.json").exists()
+        assert await load_summaries(cache_dir) == sample_summaries[:1]
