@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/meijieru/github_summary/compare/v2.0.0...v2.0.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **build:** docker release workflow and commit uv lockfile ([0300296](https://github.com/meijieru/github_summary/commit/03002967c202452e3d8cda9b49ea20f5a827bd1b))
+
 ## [2.0.0](https://github.com/meijieru/github_summary/compare/v1.0.0...v2.0.0) (2026-05-10)
 
 
