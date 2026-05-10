@@ -13,5 +13,3 @@ config/
 cache/
 output/
 log/
-
-uv.lock
