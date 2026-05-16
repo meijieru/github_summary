@@ -144,6 +144,7 @@ class GitHubSummaryApp:
             self._summarizer = Summarizer(
                 llm_client=llm_client,
                 system_prompt=self.config.llm.system_prompt,
+                audience=self.config.llm.audience,
                 language=self.config.llm.language,
                 timezone=self.config.timezone,
             )

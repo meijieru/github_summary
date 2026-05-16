@@ -7,6 +7,7 @@ from github_summary.models import (
     Commit,
     Discussion,
     Issue,
+    LLMConfig,
     PullRequest,
 )
 from github_summary.summarizer import Summarizer
@@ -107,3 +108,59 @@ async def test_summarize_with_data():
 
     assert result == "Generated summary"
     mock_llm_client.generate_summary.assert_called_once()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_summarizer_prompt_uses_concise_high_signal_structure():
+    """Ensure the generated prompt uses the revised high-signal structure."""
+    mock_llm_client = AsyncMock()
+    mock_llm_client.generate_summary.return_value = "Generated summary"
+
+    summarizer = Summarizer(
+        llm_client=mock_llm_client,
+        system_prompt=LLMConfig(base_url=None, api_key=None).system_prompt,
+        audience="mixed",
+    )
+
+    repo_data = {
+        "repo": "test/repo",
+        "commits": [],
+        "pull_requests": [],
+        "issues": [],
+        "discussions": [],
+        "releases": [],
+    }
+
+    await summarizer.summarize(repo_data, None)
+
+    system_prompt, prompt = mock_llm_client.generate_summary.call_args.args
+    assert "high-signal GitHub activity summaries" in system_prompt
+    assert "Balance user impact with brief technical context." in system_prompt
+    assert "## TL;DR" in prompt
+    assert "- 2-4 bullets only." in prompt
+    assert "## Details" in prompt
+    assert "Treat open pull requests as active developments only." in prompt
+    assert "## Watchlist" in prompt
+    assert prompt.index("## TL;DR") < prompt.index("## Details")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_summarizer_prompt_includes_language_and_last_run_context():
+    mock_llm_client = AsyncMock()
+    mock_llm_client.generate_summary.return_value = "Generated summary"
+
+    summarizer = Summarizer(
+        llm_client=mock_llm_client,
+        system_prompt=LLMConfig(base_url=None, api_key=None).system_prompt,
+        audience="user",
+        language="Chinese",
+    )
+
+    await summarizer.summarize({"repo": "test/repo"}, datetime(2025, 1, 1, tzinfo=UTC))
+
+    system_prompt, prompt = mock_llm_client.generate_summary.call_args.args
+    assert "Write the final summary in Chinese." in system_prompt
+    assert "Optimize for practical user impact" in system_prompt
+    assert "The previous successful run was at 2025-01-01 00:00:00 UTC." in prompt

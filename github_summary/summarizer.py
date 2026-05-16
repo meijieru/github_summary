@@ -6,17 +6,17 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
-PROMPT_TEMPLATE = """{system_prompt}
-
-```json
-{info}
-```"""
+AUDIENCE_GUIDANCE = {
+    "user": "Optimize for practical user impact: upgrades, new capabilities, compatibility risks, and behavior changes.",
+    "maintainer": "Optimize for maintainers: module-level implications, migration work, operational risk, and implementation-relevant context.",
+    "mixed": "Balance user impact with brief technical context. Explain why a change matters without turning the summary into release-note prose.",
+}
 
 
 class AsyncLLMClient(Protocol):
     """A protocol defining the interface for an async LLM client."""
 
-    async def generate_summary(self, prompt: str) -> str:
+    async def generate_summary(self, system_prompt: str, prompt: str) -> str:
         """Generates a summary for the given prompt."""
         ...
 
@@ -33,6 +33,7 @@ class Summarizer:
         self,
         llm_client: AsyncLLMClient,
         system_prompt: str,
+        audience: str = "mixed",
         language: str | None = None,
         timezone: str | None = None,
     ):
@@ -41,12 +42,14 @@ class Summarizer:
         Args:
             llm_client: An object that conforms to the AsyncLLMClient protocol.
             system_prompt: The base system prompt for the LLM.
+            audience: The target audience perspective for the summary.
             language: The desired language for the summary (e.g., "en", "es").
             timezone: The timezone for displaying timestamps (e.g., "America/New_York").
         """
         logger.info("Initializing Summarizer.")
         self.llm_client = llm_client
         self.system_prompt = system_prompt
+        self.audience = audience
         self.language = language
         self.timezone_str = timezone
         self._tz = self._get_timezone()
@@ -91,6 +94,52 @@ class Summarizer:
                 return data
         return data
 
+    def _build_system_prompt(self) -> str:
+        prompt_lines = [self.system_prompt.strip(), AUDIENCE_GUIDANCE.get(self.audience, AUDIENCE_GUIDANCE["mixed"])]
+        if self.language:
+            prompt_lines.append(
+                f"Write the final summary in {self.language}. Do not translate common technical terms or abbreviations."
+            )
+        return "\n\n".join(prompt_lines)
+
+    def _build_user_prompt(self, info: dict, last_run_time: datetime | None) -> str:
+        prompt_lines = [
+            "Summarize the repository activity in the JSON payload below.",
+            "Use only facts supported by the input. If something is uncertain, omit it rather than infer.",
+            "Keep the output concise and high-signal. Do not rewrite the entire release notes.",
+            "Treat releases, merged pull requests, closed issues, and already-landed commits as completed work.",
+            "Treat open pull requests as active developments only. Never mix them into completed-work sections.",
+            "If the same change appears in multiple input objects, mention it once using the most canonical source.",
+            "Avoid marketing language, roadmap speculation, placeholder notes, or self-corrections.",
+            "",
+            "Output format",
+            "## TL;DR",
+            "- 2-4 bullets only.",
+            "- Mention only the most important completed changes.",
+            "- Each bullet should explain why the reader should care.",
+            "- Do not mention open pull requests here.",
+            "",
+            "## Details",
+            "- Cover at most 4 completed items.",
+            "- Prioritize: releases, breaking changes, major user-facing features, critical fixes, major performance or architecture changes.",
+            "- Expand only the most important items from TL;DR; do not restate everything.",
+            "- Distinguish facts from implications. Keep implications modest and directly supported by the input.",
+            "- If little happened, say so plainly.",
+            "",
+            "## Watchlist",
+            "- Optional section.",
+            "- Include at most 3 notable open pull requests.",
+            "- For each item, give the title with link and one short sentence on why it is worth watching.",
+            "- Omit the section entirely if there are no clearly notable open pull requests in the input.",
+            "",
+            "Input JSON",
+        ]
+        if last_run_time:
+            display_time = last_run_time.astimezone(self._tz) if self._tz else last_run_time
+            prompt_lines.insert(1, f"The previous successful run was at {display_time.strftime('%Y-%m-%d %H:%M:%S %Z')}.")
+        prompt_lines.extend(("```json", json.dumps(info, indent=2), "```"))
+        return "\n".join(prompt_lines)
+
     async def summarize(self, info: dict, last_run_time: datetime | None) -> str:
         """Generates a summary of GitHub activity.
 
@@ -109,27 +158,11 @@ class Summarizer:
         # Convert timestamps if a valid timezone is set
         processed_info = self._convert_timestamps(info, self._tz) if self._tz else info
 
-        # Build the system prompt
-        prompt_lines = [self.system_prompt]
-        if self.language:
-            prompt_lines.append(
-                f"Please provide the summary in {self.language}. "
-                "Do not translate common technical terms or abbreviations."
-            )
-
-        if last_run_time:
-            display_time = last_run_time.astimezone(self._tz) if self._tz else last_run_time
-            prompt_lines.append(f"The last run was at {display_time.strftime('%Y-%m-%d %H:%M:%S %Z')}.")
-
-        system_prompt = "\n".join(prompt_lines)
-
-        # Create the full prompt and generate the summary
-        prompt = PROMPT_TEMPLATE.format(
-            system_prompt=system_prompt,
-            info=json.dumps(processed_info, indent=2),
-        )
-        logger.debug("Generated prompt: %s", prompt)
-        summary = await self.llm_client.generate_summary(prompt)
+        system_prompt = self._build_system_prompt()
+        prompt = self._build_user_prompt(processed_info, last_run_time)
+        logger.debug("Generated system prompt: %s", system_prompt)
+        logger.debug("Generated user prompt: %s", prompt)
+        summary = await self.llm_client.generate_summary(system_prompt, prompt)
 
         # Clean up the summary output
         if summary.startswith("```markdown"):

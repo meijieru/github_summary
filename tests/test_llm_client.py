@@ -33,10 +33,14 @@ class TestAsyncLLMClient:
                 model_name="gpt-4",
             )
 
-            result = await client.generate_summary("Test prompt")
+            result = await client.generate_summary("System prompt", "Test prompt")
 
             assert result == "Test summary"
             mock_client.chat.completions.create.assert_called_once()
+            assert mock_client.chat.completions.create.call_args.kwargs["messages"] == [
+                {"role": "system", "content": "System prompt"},
+                {"role": "user", "content": "Test prompt"},
+            ]
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -65,7 +69,7 @@ class TestAsyncLLMClient:
                 retry_exp_multiplier=1,  # Fast retry for testing
             )
 
-            result = await client.generate_summary("Test prompt")
+            result = await client.generate_summary("System prompt", "Test prompt")
 
             assert result == "Success"
             assert mock_client.chat.completions.create.call_count == 2

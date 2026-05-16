@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletionUserMessageParam
+from openai.types.chat import ChatCompletionMessageParam
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -43,23 +43,26 @@ class AsyncLLMClient:
             timeout=120.0,
         )
 
-    async def generate_summary(self, prompt: str) -> str:
+    async def generate_summary(self, system_prompt: str, prompt: str) -> str:
         """Generate a summary from a prompt.
 
         Args:
-            prompt: The full prompt including system instructions and data.
+            system_prompt: The system instructions for the model.
+            prompt: The user prompt containing task-specific data.
 
         Returns:
             The generated summary.
         """
         # Use semaphore to limit concurrent LLM requests
         async with self.semaphore:
-            return await self._generate_summary_internal(prompt)
+            return await self._generate_summary_internal(system_prompt, prompt)
 
-    async def _generate_summary_internal(self, prompt: str) -> str:
+    async def _generate_summary_internal(self, system_prompt: str, prompt: str) -> str:
         """Internal method to generate summary with retry logic."""
-        # The prompt already contains everything including system instructions
-        messages: list[ChatCompletionUserMessageParam] = [{"role": "user", "content": prompt}]
+        messages: list[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ]
 
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.retries),
