@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/meijieru/github_summary/compare/v2.0.2...v3.0.0) (2026-05-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **llm:** rewrite summary prompt & structure
+
+### Code Refactoring
+
+* **llm:** rewrite summary prompt & structure ([85c95e0](https://github.com/meijieru/github_summary/commit/85c95e083679062c1d3a747cb203d13bc2e4caf7))
+
 ## [2.0.2](https://github.com/meijieru/github_summary/compare/v2.0.1...v2.0.2) (2026-05-10)
 
 
