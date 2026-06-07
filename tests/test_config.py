@@ -27,6 +27,7 @@ def test_load_config_success(tmp_path):
     config = load_config(str(config_file))
     assert isinstance(config, Config)
     assert config.repositories[0].name == "owner/repo1"
+    assert config.repositories[0].audience is None
     assert config.repositories[1].name == "owner/repo2"
     assert config.repositories[1].filters.commits.author == "test_author"
     assert config.run_dir == str(Path(get_default_run_dir()).resolve())
@@ -34,6 +35,34 @@ def test_load_config_success(tmp_path):
     assert config.cache_dir == str((Path(get_default_run_dir()) / "cache").resolve())
     assert config.log_dir == str((Path(get_default_run_dir()) / "log").resolve())
     assert config.since_last_run is True
+
+
+@pytest.mark.unit
+def test_load_config_supports_per_repository_audience(tmp_path):
+    config_content = """
+    [github]
+    token = "dummy_token"
+
+    [llm]
+    audience = "mixed"
+
+    [[repositories]]
+    name = "owner/user-facing"
+    audience = "user"
+
+    [[repositories]]
+    name = "owner/internal-lib"
+    audience = "maintainer"
+    """
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(config_content)
+
+    config = load_config(str(config_file))
+
+    assert config.llm is not None
+    assert config.llm.audience == "mixed"
+    assert config.repositories[0].audience == "user"
+    assert config.repositories[1].audience == "maintainer"
 
 
 @pytest.mark.unit

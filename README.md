@@ -96,12 +96,15 @@ token = "YOUR_GITHUB_TOKEN"
 
 [[repositories]]
 name = "owner/repo-name"
+# Optional per-repository override for [llm].audience.
+# audience = "maintainer"
 
 [llm]
 api_key = "YOUR_LLM_API_KEY"
 base_url = "https://api.openai.com/v1"  # Optional: custom OpenAI-compatible endpoint
 model_name = "gpt-4o-mini"
 language = "English"
+audience = "mixed"  # "user", "maintainer", or "mixed"
 
 [performance]
 max_concurrent_repos = 4  # Maximum concurrent repository processing
@@ -136,6 +139,20 @@ timezone = "America/New_York"
 [repositories.schedule]
 cron = "0 12 * * 1"         # Every Monday at noon
 timezone = "UTC"
+```
+
+### Per-Repository Audience
+
+Use `audience` under a repository to override the global `[llm].audience` for that repo:
+
+```toml
+[[repositories]]
+name = "owner/service"
+audience = "maintainer"
+
+[[repositories]]
+name = "owner/app"
+audience = "user"
 ```
 
 ### Release Tracking

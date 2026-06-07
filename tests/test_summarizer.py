@@ -136,11 +136,14 @@ async def test_summarizer_prompt_uses_concise_high_signal_structure():
 
     system_prompt, prompt = mock_llm_client.generate_summary.call_args.args
     assert "high-signal GitHub activity summaries" in system_prompt
-    assert "Balance user impact with brief technical context." in system_prompt
+    assert "Balance user impact with concise technical context." in system_prompt
+    assert "GitHub-flavored Markdown only" in system_prompt
     assert "## TL;DR" in prompt
     assert "- 2-4 bullets only." in prompt
     assert "## Details" in prompt
     assert "Treat open pull requests as active developments only." in prompt
+    assert "Never mention a pull request number, title, or status without a hyperlink." in prompt
+    assert "Do not use Markdown tables" in prompt
     assert "## Watchlist" in prompt
     assert prompt.index("## TL;DR") < prompt.index("## Details")
 
@@ -164,3 +167,22 @@ async def test_summarizer_prompt_includes_language_and_last_run_context():
     assert "Write the final summary in Chinese." in system_prompt
     assert "Optimize for practical user impact" in system_prompt
     assert "The previous successful run was at 2025-01-01 00:00:00 UTC." in prompt
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_summarizer_accepts_per_call_audience_override():
+    mock_llm_client = AsyncMock()
+    mock_llm_client.generate_summary.return_value = "Generated summary"
+
+    summarizer = Summarizer(
+        llm_client=mock_llm_client,
+        system_prompt=LLMConfig(base_url=None, api_key=None).system_prompt,
+        audience="user",
+    )
+
+    await summarizer.summarize({"repo": "test/repo", "commits": [{"sha": "abc123"}]}, None, audience="maintainer")
+
+    system_prompt, _ = mock_llm_client.generate_summary.call_args.args
+    assert "Optimize for maintainers" in system_prompt
+    assert "Optimize for practical user impact" not in system_prompt

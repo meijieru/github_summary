@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from click.utils import strip_ansi
 from typer.testing import CliRunner
 
 from github_summary.cli import app
@@ -16,6 +17,11 @@ from github_summary.cli import app
 def runner():
     """Create a CLI test runner."""
     return CliRunner()
+
+
+def _plain_stdout(result) -> str:
+    """Return CLI output without terminal styling escape sequences."""
+    return strip_ansi(result.stdout)
 
 
 @pytest.fixture
@@ -50,45 +56,50 @@ class TestCLICommands:
     def test_cli_help(self, runner):
         """Test main CLI help."""
         result = runner.invoke(app, ["--help"])
+        output = _plain_stdout(result)
         assert result.exit_code == 0
-        assert "GitHub Repository Summary Tool" in result.stdout
-        assert "run" in result.stdout
-        assert "serve" in result.stdout
-        assert "schedule" in result.stdout
-        assert "utils" in result.stdout
+        assert "GitHub Repository Summary Tool" in output
+        assert "run" in output
+        assert "serve" in output
+        assert "schedule" in output
+        assert "utils" in output
 
     def test_run_help(self, runner):
         """Test run command help."""
         result = runner.invoke(app, ["run", "--help"])
+        output = _plain_stdout(result)
         assert result.exit_code == 0
-        assert "Generate repository summaries" in result.stdout
-        assert "--repo" in result.stdout
-        assert "--config" in result.stdout
-        assert "--save-json" in result.stdout
-        assert "--save-markdown" in result.stdout
-        assert "--skip-summary" in result.stdout
+        assert "Generate repository summaries" in output
+        assert "--repo" in output
+        assert "--config" in output
+        assert "--save-json" in output
+        assert "--save-markdown" in output
+        assert "--skip-summary" in output
 
     def test_serve_help(self, runner):
         """Test serve command help."""
         result = runner.invoke(app, ["serve", "--help"])
+        output = _plain_stdout(result)
         assert result.exit_code == 0
-        assert "Start RSS web server" in result.stdout
-        assert "--host" in result.stdout
-        assert "--port" in result.stdout
-        assert "--reload" in result.stdout
+        assert "Start RSS web server" in output
+        assert "--host" in output
+        assert "--port" in output
+        assert "--reload" in output
 
     def test_schedule_help(self, runner):
         """Test schedule command help."""
         result = runner.invoke(app, ["schedule", "--help"])
+        output = _plain_stdout(result)
         assert result.exit_code == 0
-        assert "Run scheduler daemon" in result.stdout
+        assert "Run scheduler daemon" in output
 
     def test_utils_help(self, runner):
         """Test utils subcommand help."""
         result = runner.invoke(app, ["utils", "--help"])
+        output = _plain_stdout(result)
         assert result.exit_code == 0
-        assert "Utility commands" in result.stdout
-        assert "validate-config" in result.stdout
+        assert "Utility commands" in output
+        assert "validate-config" in output
 
     @patch("github_summary.cli.GitHubSummaryApp")
     def test_run_command_basic(self, mock_app_class, runner, temp_config):

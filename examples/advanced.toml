@@ -19,6 +19,7 @@ api_key = "your_openai_api_key"
 base_url = "https://api.openai.com/v1"  # Optional: custom endpoint
 model_name = "gpt-4"
 language = "English"
+audience = "mixed"  # Global default: "user", "maintainer", or "mixed"
 retries = 3
 retry_exp_multiplier = 1
 
@@ -53,6 +54,7 @@ timezone = "America/New_York"
 # Repository configurations
 [[repositories]]
 name = "company/critical-service"
+audience = "maintainer"         # Override the global LLM audience for this repo
 include_commits = true
 include_pull_requests = true
 include_issues = true
@@ -67,6 +69,7 @@ exclude_commit_messages_regex = "^(test|ci):"
 
 [[repositories]]
 name = "company/frontend-app"
+audience = "user"
 # Custom filters for this repo
 [repositories.filters.pull_requests]
 labels = ["ready-for-review", "bug", "feature"]

@@ -104,6 +104,29 @@ def test_markdown_rendering(rss_config, summaries_data, tmp_path):
 
 
 @pytest.mark.unit
+def test_markdown_table_rendering(rss_config, tmp_path):
+    output_dir = str(tmp_path)
+    summaries = [
+        {
+            "id": "test/repo-table",
+            "title": "Summary for test/repo-table",
+            "content": "| Area | Change |\n| --- | --- |\n| API | Added links |",
+            "link": "http://example.com/repo-table",
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+    ]
+
+    generate_feed_from_summaries(rss_config, output_dir, summaries)
+
+    rss_file = tmp_path / rss_config.filename
+    with open(rss_file, "r") as f:
+        content = f.read()
+
+    assert "<table>" in content
+    assert "<td>API</td>" in content
+
+
+@pytest.mark.unit
 def test_generate_feed_empty_summaries(rss_config, tmp_path):
     """Test that an empty feed is generated if there are no summaries."""
     output_dir = str(tmp_path)

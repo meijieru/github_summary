@@ -249,7 +249,7 @@ class GitHubSummaryApp:
         )
         return fallback_since
 
-    async def _generate_summary(self, repo_data: dict, summarizer, since: datetime) -> str:
+    async def _generate_summary(self, repo_data: dict, summarizer, since: datetime, audience: str | None = None) -> str:
         """Generate summary from repository data using async summarizer."""
         if not summarizer:
             return ""
@@ -260,7 +260,7 @@ class GitHubSummaryApp:
             return ""
 
         logger.info("Generating summary with LLM for %s", repo_data.get("repo", "unknown"))
-        summary = await summarizer.summarize(repo_data, since)
+        summary = await summarizer.summarize(repo_data, since, audience=audience)
         logger.debug("Generated summary for %s (%d characters)", repo_data.get("repo", "unknown"), len(summary))
         return summary
 
@@ -341,7 +341,7 @@ class GitHubSummaryApp:
             repo_data = await self._fetch_repo_data(github_service, repo, since)
 
             # Generate summary
-            summary = await self._generate_summary(repo_data, summarizer, since)
+            summary = await self._generate_summary(repo_data, summarizer, since, audience=repo.audience)
 
             # Save outputs asynchronously
             if save_markdown:

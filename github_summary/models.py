@@ -93,6 +93,7 @@ class RepoConfig(StrictConfigModel):
     """Configuration for a single GitHub repository."""
 
     name: str
+    audience: Literal["user", "maintainer", "mixed"] | None = None
     filters: FilterConfig = Field(default_factory=FilterConfig)
     include_commits: bool = True
     include_pull_requests: bool = True

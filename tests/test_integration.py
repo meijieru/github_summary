@@ -21,7 +21,7 @@ def mock_config():
     """Create a test application configuration."""
     return Config(
         github=GitHubConfig(token="test_token"),
-        repositories=[RepoConfig(name="test/repo", include_commits=True)],
+        repositories=[RepoConfig(name="test/repo", audience="user", include_commits=True)],
         llm=LLMConfig(
             api_key="test_api_key",
             base_url="https://api.openai.com/v1",
@@ -78,3 +78,4 @@ class TestIntegration:
             # Verify interactions
             mock_github_service_class.assert_called_once()
             mock_summarizer.summarize.assert_called_once()
+            assert mock_summarizer.summarize.call_args.kwargs["audience"] == "user"

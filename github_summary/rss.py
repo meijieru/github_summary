@@ -20,7 +20,7 @@ def generate_feed_from_summaries(rss_config: RssConfig, output_dir: str, summari
         summaries: A list of summary dictionaries, each with 'id', 'title', 'content', 'link', and 'timestamp'.
     """
     logger.info("Generating RSS feed from %d summaries.", len(summaries))
-    md = MarkdownIt()
+    md = MarkdownIt("commonmark").enable("table")
     feed = FeedGenerator()
     feed.title(rss_config.title)
     feed.link(href=rss_config.link, rel="alternate")

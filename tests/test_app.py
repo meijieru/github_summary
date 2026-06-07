@@ -31,6 +31,7 @@ token = "test_token"
 
 [[repositories]]
 name = "test/repo"
+audience = "maintainer"
 include_commits = true
 include_pull_requests = false
 include_issues = false
@@ -195,6 +196,7 @@ class TestIntegration:
             # 3. Assertions
             # Assert that a summary was generated
             mock_summarizer_instance.summarize.assert_called_once()
+            assert mock_summarizer_instance.summarize.call_args.kwargs["audience"] == "maintainer"
 
             # Assert that the new summary was added to the cache
             mock_add_to_cache.assert_called_once()
