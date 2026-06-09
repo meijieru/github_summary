@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/meijieru/github_summary/compare/v3.0.0...v3.1.0) (2026-06-08)
+
+
+### Features
+
+* improve summary markdown links, tables and repo audience handling ([4df0bcd](https://github.com/meijieru/github_summary/commit/4df0bcd5787e10d0b1473b3d23756f3ca8187e75))
+
 ## [3.0.0](https://github.com/meijieru/github_summary/compare/v2.0.2...v3.0.0) (2026-05-17)
 
 
