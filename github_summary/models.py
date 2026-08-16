@@ -1,4 +1,4 @@
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from tzlocal import get_localzone_name
@@ -122,6 +122,7 @@ class LLMConfig(StrictConfigModel):
     base_url: str | None = Field(None, json_schema_extra={"env": "OPENAI_BASE_URL"})
     api_key: str | None = Field(None, json_schema_extra={"env": "OPENAI_API_KEY"})
     model_name: str = "gpt-4.1"
+    extra_params: dict[str, Any] = Field(default_factory=dict)
     language: str | None = None
     audience: Literal["user", "maintainer", "mixed"] = "mixed"
     retries: int = 3

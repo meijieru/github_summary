@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Any
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
@@ -16,6 +17,7 @@ class AsyncLLMClient:
         api_key: str,
         base_url: str | None = None,
         model_name: str = "gpt-4",
+        extra_params: dict[str, Any] | None = None,
         retries: int = 5,
         retry_exp_multiplier: int = 1,
         max_concurrent: int = 3,
@@ -26,11 +28,13 @@ class AsyncLLMClient:
             api_key: The API key for authentication.
             base_url: The base URL for the API. If None, uses OpenAI's default.
             model_name: The name of the model to use.
+            extra_params: Additional parameters passed to the chat completion API.
             retries: Number of retry attempts for failed requests.
             retry_exp_multiplier: The multiplier for exponential backoff in seconds.
             max_concurrent: Maximum number of concurrent requests.
         """
         self.model_name = model_name
+        self.extra_params = extra_params or {}
         self.retries = retries
         self.retry_exp_multiplier = retry_exp_multiplier
         self.semaphore = asyncio.Semaphore(max_concurrent)
@@ -75,6 +79,7 @@ class AsyncLLMClient:
                 response = await self.client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
+                    **self.extra_params,
                 )
 
                 if not response.choices:
