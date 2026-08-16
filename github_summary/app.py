@@ -136,6 +136,7 @@ class GitHubSummaryApp:
                 api_key=self.config.llm.api_key if self.config.llm.api_key else "",
                 base_url=self.config.llm.base_url,
                 model_name=self.config.llm.model_name,
+                extra_params=self.config.llm.extra_params,
                 retries=self.config.llm.retries,
                 retry_exp_multiplier=self.config.llm.retry_exp_multiplier,
                 max_concurrent=self.config.performance.max_concurrent_llm,

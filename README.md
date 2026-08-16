@@ -106,6 +106,14 @@ model_name = "gpt-4o-mini"
 language = "English"
 audience = "mixed"  # "user", "maintainer", or "mixed"
 
+# Optional parameters passed directly to chat.completions.create
+[llm.extra_params]
+reasoning_effort = "low"
+
+# Provider-specific nested parameters are also supported:
+# [llm.extra_params.extra_body.thinking]
+# type = "disabled"
+
 [performance]
 max_concurrent_repos = 4  # Maximum concurrent repository processing
 max_concurrent_llm = 3    # Maximum concurrent LLM requests

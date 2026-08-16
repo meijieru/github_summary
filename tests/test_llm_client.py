@@ -31,6 +31,10 @@ class TestAsyncLLMClient:
                 api_key="test_key",
                 base_url="https://api.openai.com/v1",
                 model_name="gpt-4",
+                extra_params={
+                    "reasoning_effort": "low",
+                    "extra_body": {"thinking": {"type": "enabled"}},
+                },
             )
 
             result = await client.generate_summary("System prompt", "Test prompt")
@@ -41,6 +45,10 @@ class TestAsyncLLMClient:
                 {"role": "system", "content": "System prompt"},
                 {"role": "user", "content": "Test prompt"},
             ]
+            assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+            assert mock_client.chat.completions.create.call_args.kwargs["extra_body"] == {
+                "thinking": {"type": "enabled"}
+            }
 
     @pytest.mark.integration
     @pytest.mark.asyncio

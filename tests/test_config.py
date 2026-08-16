@@ -66,6 +66,33 @@ def test_load_config_supports_per_repository_audience(tmp_path):
 
 
 @pytest.mark.unit
+def test_load_config_supports_llm_extra_params(tmp_path):
+    config_content = """
+    [github]
+    token = "dummy_token"
+
+    [llm.extra_params]
+    reasoning_effort = "low"
+
+    [llm.extra_params.extra_body.thinking]
+    type = "disabled"
+
+    [[repositories]]
+    name = "owner/repo"
+    """
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(config_content)
+
+    config = load_config(str(config_file))
+
+    assert config.llm is not None
+    assert config.llm.extra_params == {
+        "reasoning_effort": "low",
+        "extra_body": {"thinking": {"type": "disabled"}},
+    }
+
+
+@pytest.mark.unit
 def test_load_config_rejects_unknown_fields(tmp_path):
     config_content = """
     [github]
