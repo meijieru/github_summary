@@ -36,7 +36,7 @@ class SummaryCache:
                     return json.load(f)
 
             return _read_file()
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning("Could not load cache, starting fresh: %s", e)
             return []
 

@@ -57,12 +57,7 @@ await app.run(
 await app.run()
 
 # Process specific repositories with outputs
-await app.run(
-    repo_names=["owner/repo1", "owner/repo2"],
-    save_json=True,
-    save_markdown=True,
-    max_concurrent_repos=4
-)
+await app.run(repo_names=["owner/repo1", "owner/repo2"], save_json=True, save_markdown=True, max_concurrent_repos=4)
 ```
 
 #### Context Manager Usage
@@ -229,14 +224,16 @@ All CLI commands are available programmatically:
 from github_summary.cli import run
 from asyncio import run as arun
 
-arun(run(
-    repo="owner/repo",
-    config="config/config.toml",
-    save_json=True,
-    save_markdown=False,
-    skip_summary=False,
-    max_concurrent=None
-))
+arun(
+    run(
+        repo="owner/repo",
+        config="config/config.toml",
+        save_json=True,
+        save_markdown=False,
+        skip_summary=False,
+        max_concurrent=None,
+    )
+)
 ```
 
 ### serve()
@@ -244,12 +241,7 @@ arun(run(
 ```python
 from github_summary.cli import serve
 
-serve(
-    config="config/config.toml",
-    host="0.0.0.0",
-    port=8000,
-    reload=False
-)
+serve(config="config/config.toml", host="0.0.0.0", port=8000, reload=False)
 ```
 
 ### schedule()
@@ -337,6 +329,7 @@ These environment variables can override configuration:
 ```python
 # Application automatically uses semaphores to limit concurrency
 semaphore = asyncio.Semaphore(max_concurrent_repos)
+
 
 async def process_with_semaphore(repo):
     async with semaphore:

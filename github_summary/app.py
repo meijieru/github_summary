@@ -120,7 +120,8 @@ class GitHubSummaryApp:
             try:
                 self._github_service = GitHubService(github_token)
                 await self._github_service.__aenter__()
-            except Exception as e:
+            # CLI boundary: convert unexpected setup failures into a clean exit.
+            except Exception as e:  # noqa: BLE001
                 logger.error("GitHub service creation error: %s", e)
                 raise typer.Exit(1)
 
@@ -435,7 +436,7 @@ class GitHubSummaryApp:
                         logger.error("Repository %s failed with exception: %s", repositories[i].name, result)
                         continue
 
-                    repo_name, completion_time, summary, repo_data = result
+                    repo_name, completion_time, summary, _repo_data = result
 
                     if completion_time:
                         run_key = _get_run_key(self.config_path, repo_name)
@@ -481,7 +482,8 @@ class GitHubSummaryApp:
 
                 logger.info("Processing completed for %d repositories", len(repositories))
 
-            except Exception as e:
+            # CLI boundary: convert unexpected processing failures into a clean exit.
+            except Exception as e:  # noqa: BLE001
                 logger.error("Unexpected error during processing: %s", e)
                 raise typer.Exit(1)
 

@@ -253,12 +253,7 @@ app = GitHubSummaryApp("config/config.toml", skip_summary=False)
 await app.run()
 
 # Process specific repositories
-await app.run(
-    repo_names=["owner/repo1", "owner/repo2"],
-    save_json=True,
-    save_markdown=True,
-    max_concurrent_repos=4
-)
+await app.run(repo_names=["owner/repo1", "owner/repo2"], save_json=True, save_markdown=True, max_concurrent_repos=4)
 ```
 
 ### Docker Deployment

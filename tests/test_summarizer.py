@@ -80,7 +80,6 @@ def test_summarizer_output_json():
     """Test summarizer integration with new architecture."""
     # This test is now covered by test_app.py and test_cli.py
     # Removed old CLI testing that relied on deprecated functions
-    pass
 
 
 @pytest.mark.unit

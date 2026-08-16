@@ -97,7 +97,7 @@ class Summarizer:
             return [Summarizer._convert_timestamps(item, tz) for item in data]
         if isinstance(data, str):
             try:
-                dt = datetime.fromisoformat(data.replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(data)
                 return dt.astimezone(tz).isoformat()
             except (ValueError, TypeError):
                 return data

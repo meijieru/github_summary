@@ -9,6 +9,10 @@ from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
 logger = logging.getLogger(__name__)
 
 
+class LLMGenerationError(RuntimeError):
+    """Raised when an LLM summary cannot be generated after retrying."""
+
+
 class AsyncLLMClient:
     """Async LLM client using AsyncOpenAI for concurrent API calls."""
 
@@ -90,4 +94,4 @@ class AsyncLLMClient:
                     raise ValueError("Empty content in LLM response")
 
                 return content
-        raise Exception("Failed to generate summary after multiple retries.")
+        raise LLMGenerationError("Failed to generate summary after multiple retries.")
