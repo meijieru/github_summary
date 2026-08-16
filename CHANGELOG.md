@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/meijieru/github_summary/compare/v3.1.0...v3.1.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **lint:** update to latest ruff ([dfd2df9](https://github.com/meijieru/github_summary/commit/dfd2df991143f365024b2347785c0bc1741e6d82))
+
 ## [3.1.0](https://github.com/meijieru/github_summary/compare/v3.0.0...v3.1.0) (2026-06-08)
 
 
