@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/meijieru/github_summary/compare/v3.1.1...v3.2.0) (2026-08-22)
+
+
+### Features
+
+* **reload:** add config file watching with live job reload in scheduler ([8483bfd](https://github.com/meijieru/github_summary/commit/8483bfdf3f473ac99691bda81c7d9c36b7716d6d))
+
 ## [3.1.1](https://github.com/meijieru/github_summary/compare/v3.1.0...v3.1.1) (2026-08-16)
 
 
