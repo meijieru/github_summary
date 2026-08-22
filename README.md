@@ -70,6 +70,10 @@ ghsum serve --reload
 ghsum schedule
 ```
 
+The scheduler and RSS server watch the configuration file and apply valid changes
+within about one second. Schedule, repository, filter, LLM, and performance changes
+take effect without a restart. Invalid edits are logged while the last valid schedules remain active.
+
 ### Utilities
 
 ```bash
@@ -105,14 +109,10 @@ base_url = "https://api.openai.com/v1"  # Optional: custom OpenAI-compatible end
 model_name = "gpt-4o-mini"
 language = "English"
 audience = "mixed"  # "user", "maintainer", or "mixed"
-
-# Optional parameters passed directly to chat.completions.create
-[llm.extra_params]
-reasoning_effort = "low"
-
+# Optional parameters passed directly to chat.completions.create:
+extra_params.reasoning_effort = "low"
 # Provider-specific nested parameters are also supported:
-# [llm.extra_params.extra_body.thinking]
-# type = "disabled"
+# extra_params.extra_body.thinking.type = "disabled"
 
 [performance]
 max_concurrent_repos = 4  # Maximum concurrent repository processing

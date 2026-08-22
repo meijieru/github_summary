@@ -175,6 +175,7 @@ scheduler = ReportScheduler(
     output_dir: str | None = None,
     cache_dir: str | None = None,
     log_dir: str | None = None,
+    reload_interval: float = 1.0,
 )
 ```
 
@@ -187,6 +188,9 @@ Start the scheduler.
 ```python
 await scheduler.start()
 ```
+
+Starting the scheduler also watches the configuration file. Valid changes rebuild
+the scheduled jobs and clear the cached configuration; invalid changes leave the previous jobs active.
 
 ##### `stop()`
 
@@ -308,7 +312,9 @@ LLM service configuration.
 - `base_url: str | None` - API base URL
 - `api_key: str | None` - API key
 - `model_name: str` - Model name
+- `extra_params: dict[str, Any]` - Additional chat completion request parameters
 - `language: str | None` - Summary language
+- `audience: Literal["user", "maintainer", "mixed"]` - Intended summary audience
 - `retries: int` - Number of retries
 - `retry_exp_multiplier: int` - Delay between retries
 - `system_prompt: str` - System prompt for the LLM

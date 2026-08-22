@@ -36,8 +36,7 @@ def resolve_runtime_paths(config: Config, base_dir: Path | None = None) -> Confi
     )
 
 
-@functools.lru_cache(maxsize=8)
-def load_config(path: str | Path = "config/config.toml") -> Config:
+def load_config_uncached(path: str | Path = "config/config.toml") -> Config:
     """Loads the configuration from a TOML file and validates it against the Config model.
 
     Args:
@@ -66,6 +65,12 @@ def load_config(path: str | Path = "config/config.toml") -> Config:
     except ValidationError as e:
         logger.error("Invalid configuration schema: %s", e)
         raise ValueError(f"Invalid configuration schema: {e}")
+
+
+@functools.lru_cache(maxsize=8)
+def load_config(path: str | Path = "config/config.toml") -> Config:
+    """Load and cache a validated TOML configuration."""
+    return load_config_uncached(path)
 
 
 def get_max_concurrent_repos(config_path: str | Path, override: int | None = None) -> int:

@@ -1,7 +1,9 @@
+import asyncio
 from unittest.mock import patch
 
 import pytest
 
+from github_summary.config import load_config
 from github_summary.models import Config, GitHubConfig, RepoConfig, ScheduleConfig
 from github_summary.scheduler import ReportScheduler
 
@@ -142,3 +144,79 @@ def test_scheduler_with_timezone(mock_load_config, mock_run_job):
     jobs = test_scheduler.get_jobs()
     assert len(jobs) == 1
     # APScheduler handles timezone validation internally
+
+
+def _write_schedule_config(path, schedule_section: str = "") -> None:
+    path.write_text(
+        f"""
+[github]
+token = "test_token"
+
+{schedule_section}
+
+[[repositories]]
+name = "owner/repo1"
+"""
+    )
+
+
+@pytest.mark.integration
+async def test_scheduler_reloads_jobs_when_config_changes(tmp_path):
+    config_path = tmp_path / "config.toml"
+    _write_schedule_config(config_path, '[schedule]\ncron = "0 9 * * *"')
+
+    scheduler = ReportScheduler(str(config_path), reload_interval=60)
+    await scheduler.start()
+    try:
+        assert scheduler.scheduler is not None
+        assert [job.id for job in scheduler.scheduler.get_jobs()] == ["global_schedule"]
+
+        _write_schedule_config(
+            config_path,
+            '[[repositories]]\nname = "owner/repo2"\n[repositories.schedule]\ncron = "0 10 * * *"',
+        )
+
+        assert await scheduler._reload_if_changed() is True
+        assert [job.id for job in scheduler.scheduler.get_jobs()] == ["repo_owner/repo2"]
+        assert load_config(str(config_path)).repositories[0].name == "owner/repo2"
+    finally:
+        await scheduler.stop()
+
+
+@pytest.mark.integration
+async def test_scheduler_keeps_jobs_when_reloaded_config_is_invalid(tmp_path):
+    config_path = tmp_path / "config.toml"
+    _write_schedule_config(config_path, '[schedule]\ncron = "0 9 * * *"')
+
+    scheduler = ReportScheduler(str(config_path), reload_interval=60)
+    await scheduler.start()
+    try:
+        assert scheduler.scheduler is not None
+        original_job_ids = [job.id for job in scheduler.scheduler.get_jobs()]
+
+        config_path.write_text("[github")
+        assert await scheduler._reload_if_changed() is False
+        assert [job.id for job in scheduler.scheduler.get_jobs()] == original_job_ids
+    finally:
+        await scheduler.stop()
+
+
+@pytest.mark.integration
+async def test_scheduler_watches_when_started_without_jobs(tmp_path):
+    config_path = tmp_path / "config.toml"
+    _write_schedule_config(config_path)
+
+    scheduler = ReportScheduler(str(config_path), reload_interval=0.01)
+    await scheduler.start()
+    try:
+        assert scheduler.scheduler is not None
+        assert scheduler.scheduler.running is True
+        assert scheduler.scheduler.get_jobs() == []
+
+        _write_schedule_config(config_path, '[schedule]\ncron = "0 11 * * *"')
+        async with asyncio.timeout(1):
+            while not scheduler.scheduler.get_jobs():
+                await asyncio.sleep(0.01)
+        assert [job.id for job in scheduler.scheduler.get_jobs()] == ["global_schedule"]
+    finally:
+        await scheduler.stop()

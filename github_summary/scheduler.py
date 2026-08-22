@@ -1,14 +1,17 @@
 import asyncio
+import contextlib
 import logging
 import os
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, cast
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from github_summary.app import GitHubSummaryApp
-from github_summary.config import get_max_concurrent_repos, load_config
+from github_summary.config import get_max_concurrent_repos, load_config, load_config_uncached
+from github_summary.models import Config
 
 logger = logging.getLogger(__name__)
 
@@ -63,28 +66,35 @@ class ReportScheduler:
         output_dir: str | None = None,
         cache_dir: str | None = None,
         log_dir: str | None = None,
+        reload_interval: float = 1.0,
     ):
         self.config_path = config_path
         self.output_dir = output_dir
         self.cache_dir = cache_dir
         self.log_dir = log_dir
+        self.reload_interval = reload_interval
         self.scheduler: AsyncIOScheduler | None = None
+        self._watch_task: asyncio.Task[None] | None = None
+        self._last_seen_signature: tuple[int, int] | None = None
 
-    def _register_jobs(self, scheduler) -> None:
+    def _register_jobs(self, scheduler, cfg: Config | None = None, *, replace_existing: bool = False) -> None:
         """Register all cron jobs from configuration."""
 
-        cfg = load_config(self.config_path)
+        cfg = cfg or load_config(self.config_path)
         report_func = _run_scheduled_job
+        jobs: list[dict[str, Any]] = []
 
         # Register global schedule if enabled
         if cfg.schedule:
             trigger = CronTrigger.from_crontab(cfg.schedule.cron, timezone=cfg.schedule.timezone)
-            scheduler.add_job(
-                func=report_func,
-                args=(self.config_path, None, self.output_dir, self.cache_dir, self.log_dir),
-                trigger=trigger,
-                id="global_schedule",
-                name="Global repository summary",
+            jobs.append(
+                {
+                    "func": report_func,
+                    "args": (self.config_path, None, self.output_dir, self.cache_dir, self.log_dir),
+                    "trigger": trigger,
+                    "id": "global_schedule",
+                    "name": "Global repository summary",
+                }
             )
             logger.info("Registered global schedule: %s (timezone: %s)", cfg.schedule.cron, cfg.schedule.timezone)
 
@@ -112,13 +122,7 @@ class ReportScheduler:
                 job_name = f"Summary for {len(repo_names)} repositories"
                 job_args = (self.config_path, repo_names, self.output_dir, self.cache_dir, self.log_dir)
 
-            scheduler.add_job(
-                func=report_func,
-                args=job_args,
-                trigger=trigger,
-                id=job_id,
-                name=job_name,
-            )
+            jobs.append({"func": report_func, "args": job_args, "trigger": trigger, "id": job_id, "name": job_name})
 
             if len(repo_names) == 1:
                 logger.info(
@@ -136,22 +140,70 @@ class ReportScheduler:
                     timezone,
                 )
 
+        job_ids = [job["id"] for job in jobs]
+        if len(job_ids) != len(set(job_ids)):
+            raise ValueError("Configuration produces duplicate scheduler job IDs")
+
+        if replace_existing:
+            scheduler.remove_all_jobs()
+        for job in jobs:
+            scheduler.add_job(**job)
+
+    def _config_signature(self) -> tuple[int, int] | None:
+        """Return a signature that changes when the config file is replaced or edited."""
+        try:
+            stat = Path(self.config_path).stat()
+        except OSError:
+            return None
+        return stat.st_mtime_ns, stat.st_size
+
+    async def _reload_if_changed(self) -> bool:
+        """Reload scheduled jobs when a new valid configuration is observed."""
+        signature = await asyncio.to_thread(self._config_signature)
+        if signature == self._last_seen_signature:
+            return False
+        self._last_seen_signature = signature
+
+        try:
+            cfg = await asyncio.to_thread(load_config_uncached, self.config_path)
+            if self.scheduler is None:
+                return False
+            self._register_jobs(self.scheduler, cfg, replace_existing=True)
+        except Exception as exc:  # noqa: BLE001  # Keep the watcher alive for third-party scheduler errors.
+            logger.error("Configuration reload failed; keeping existing schedules: %s", exc)
+            return False
+
+        load_config.cache_clear()
+        logger.info("Configuration reloaded successfully; scheduler now has %d jobs", len(self.scheduler.get_jobs()))
+        return True
+
+    async def _watch_config(self) -> None:
+        """Watch the configuration file for changes until the scheduler stops."""
+        while True:
+            await asyncio.sleep(self.reload_interval)
+            await self._reload_if_changed()
+
     async def start(self) -> None:
         """Start the async scheduler."""
         logger.info("Starting scheduler (PID %d)", os.getpid())
 
         self.scheduler = AsyncIOScheduler()
         self._register_jobs(self.scheduler)
+        self.scheduler.start()
+        self._last_seen_signature = await asyncio.to_thread(self._config_signature)
+        self._watch_task = asyncio.create_task(self._watch_config(), name="config-reload-watcher")
 
         if not self.scheduler.get_jobs():
-            logger.warning("No schedules configured.")
-            return
-
-        self.scheduler.start()
+            logger.warning("No schedules configured; watching for configuration changes.")
         logger.info("Scheduler started with %d jobs", len(self.scheduler.get_jobs()))
 
     async def stop(self) -> None:
         """Stop the async scheduler."""
+        if self._watch_task:
+            self._watch_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._watch_task
+            self._watch_task = None
         if self.scheduler:
             cast(Any, self.scheduler).shutdown(wait=True)
             logger.info("Scheduler stopped")
@@ -162,10 +214,8 @@ class ReportScheduler:
 
         await self.start()
 
-        if not self.scheduler or not self.scheduler.get_jobs():
-            logger.warning("No schedules configured. Exiting.")
+        if self.scheduler is None:
             return
-
         logger.info("Scheduler running with %d jobs. Press Ctrl+C to stop.", len(self.scheduler.get_jobs()))
         try:
             # Keep the scheduler running
